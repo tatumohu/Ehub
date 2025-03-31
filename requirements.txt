@@ -5,3 +5,4 @@ Flask-Migrate
 Flask-Login
 WTForms
 email-validator
+flask_socketio
