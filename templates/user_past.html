@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}過去のポストとコメント{% endblock %}
+{% block content %}
+<div class="user-past-container">
+  <h2>過去のポストとコメント</h2>
+
+  <!-- 過去のポスト一覧 -->
+  <h3>過去のポスト</h3>
+  <div class="recent-container">
+    {% if past_ideas and past_ideas|length > 0 %}
+      {% for idea in past_ideas %}
+        <div class="recent-card" onclick="location.href='{{ url_for('idea_detail', idea_id=idea.id) }}';">
+          <!-- ユーザー情報ヘッダー -->
+          <div class="recent-card-header">
+            <div class="user-photo">
+              <a href="{{ url_for('user_info', user_id=idea.author_id) }}">
+                {% if idea.author and idea.author.topphoto %}
+                  <img src="{{ url_for('static', filename='uploads/' ~ idea.author.topphoto) }}" alt="Profile Photo" class="photo-thumb">
+                {% else %}
+                  <img src="{{ url_for('static', filename='images/default_user.png') }}" alt="Default Photo" class="photo-thumb">
+                {% endif %}
+              </a>
+            </div>
+            <div class="user-name">
+              <a href="{{ url_for('user_info', user_id=idea.author_id) }}">
+                {% if idea.author %}
+                  {{ idea.author.username }}
+                {% else %}
+                  不明
+                {% endif %}
+              </a>
+            </div>
+          </div>
+          <!-- ポストタイトル・概要 -->
+          <div class="recent-card-title">{{ idea.title }}</div>
+          <div class="recent-card-info">{{ idea.description[:100] }}...</div>
+          <div class="recent-card-footer">
+            <div class="footer-date">
+              <span class="local-date" data-utc="{{ idea.created_at.isoformat() }}Z"></span>
+            </div>
+            <div class="footer-icons">
+              <span class="heart-count" id="heart-count-{{ idea.id }}">
+                {{ idea.flowers|length }}
+              </span>
+              <span class="heart-icon" onclick="toggleHeart(event, '{{ idea.id }}')" id="heart-icon-{{ idea.id }}">
+                {% if current_user.is_authenticated and current_user in idea.flowers %}
+                  <i class="fa-solid fa-heart" style="color: #ff40ff;"></i>
+                {% else %}
+                  <i class="fa-regular fa-heart"></i>
+                {% endif %}
+              </span>
+              <span class="comment-icon" onclick="location.href='{{ url_for('idea_detail', idea_id=idea.id) }}';" style="cursor: pointer;">
+                <i class="fa-regular fa-comment"></i>
+              </span>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <p>過去に投稿したアイデアはありません。</p>
+    {% endif %}
+  </div>
+
+  <!-- 過去のコメント一覧 -->
+  <h3>過去のコメント</h3>
+  <div class="recent-container">
+    {% if past_comments and past_comments|length > 0 %}
+      {% for comment in past_comments %}
+        <div class="recent-card" onclick="location.href='{{ url_for('idea_detail', idea_id=comment.idea.id) }}';">
+          <!-- ユーザー情報ヘッダー -->
+          <div class="recent-card-header">
+            <div class="user-photo">
+              <a href="{{ url_for('user_info', user_id=comment.user.id) }}">
+                {% if comment.user and comment.user.topphoto %}
+                  <img src="{{ url_for('static', filename='uploads/' ~ comment.user.topphoto) }}" alt="Profile Photo" class="photo-thumb">
+                {% else %}
+                  <img src="{{ url_for('static', filename='images/default_user.png') }}" alt="Default Photo" class="photo-thumb">
+                {% endif %}
+              </a>
+            </div>
+            <div class="user-name">
+              <a href="{{ url_for('user_info', user_id=comment.user.id) }}">
+                {% if comment.user %}
+                  {{ comment.user.username }}
+                {% else %}
+                  匿名
+                {% endif %}
+              </a>
+            </div>
+          </div>
+          <!-- コメント内容 -->
+          <div class="recent-card-info">{{ comment.content[:100] }}...</div>
+          <div class="recent-card-footer">
+            <div class="footer-date">
+              {% if comment.created_at %}
+                <span class="local-date" data-utc="{{ comment.created_at.isoformat() }}Z">{{ comment.created_at.strftime('%Y/%m/%d') }}</span>
+              {% else %}
+                (日付なし)
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <p>過去に投稿したコメントはありません。</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

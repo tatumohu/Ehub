@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}E-search - 検索結果{% endblock %}
+{% block content %}
+
+<h2>E-search - 検索結果</h2>
+
+{% if ideas %}
+  <div class="recent-container">
+    {% for idea in ideas %}
+      <!-- 各カードをクリックすると idea_detail へ遷移 -->
+      <div class="recent-card" onclick="location.href='{{ url_for('idea_detail', idea_id=idea.id) }}';">
+
+        <!-- ▼ ここから「ユーザー画像＋ユーザー名」を横並びに表示するヘッダー部分 ▼ -->
+        <div class="recent-card-header">
+          <div class="user-photo">
+            <a href="{{ url_for('user_info', user_id=idea.author_id) }}">
+              {% if idea.author and idea.author.topphoto %}
+                <img 
+                  src="{{ url_for('static', filename='uploads/' ~ idea.author.topphoto) }}"
+                  alt="Profile Photo"
+                  class="photo-thumb"  <!-- 例: 画像の見た目を整えるためのクラス -->
+              {% else %}
+                <img 
+                  src="{{ url_for('static', filename='images/default_user.png') }}"
+                  alt="Default Photo"
+                  class="photo-thumb"
+                >
+              {% endif %}
+            </a>
+          </div>
+          <div class="user-name">
+            {% if idea.author %}
+              {{ idea.author.username }}
+            {% else %}
+              不明
+            {% endif %}
+          </div>
+        </div>
+        <!-- ▲ ユーザー画像＋ユーザー名 ▲ -->
+        
+        <!-- タイトル -->
+        <div class="recent-card-title">
+          {{ idea.title }}
+        </div>
+        
+        <!-- 投稿者と概要 -->
+        <div class="recent-card-info">
+          {{ idea.description[:100] }}...
+        </div>
+
+        <!-- ▼ カテゴリー表示を追加 ▼ -->
+        <div class="idea-card-categories">
+          {% for cat in idea.categories %}
+            <div class="category-item">{{ cat.name }}</div>
+          {% endfor %}
+        </div>
+        
+        <!-- フッター：日付とハートアイコン＋カウント、コメントアイコン＋カウント -->
+        <div class="recent-card-footer">
+          <div class="footer-date">
+            <span class="local-date" data-utc="{{ idea.created_at.isoformat() }}Z"></span>
+          </div>
+          <div class="footer-icons">
+            <!-- ハート（いいね）のカウント -->
+            <span class="heart-count" id="heart-count-{{ idea.id }}">
+              {{ idea.flowers|length }}
+            </span>
+            <!-- ハートのアイコン。既存の条件分岐により、すでにいいね済みの場合はピンクのハートが表示 -->
+            <span class="heart-icon" onclick="toggleHeart(event, '{{ idea.id }}')" id="heart-icon-{{ idea.id }}">
+              {% if current_user.is_authenticated and current_user in idea.flowers %}
+                <i class="fa-solid fa-heart" style="color: #ff40ff;"></i>
+              {% else %}
+                <i class="fa-regular fa-heart"></i>
+              {% endif %}
+            </span>
+            <!-- コメント数 -->
+            <span class="comment-count" id="comment-count-{{ idea.id }}">
+              {{ idea.comments.count() }}
+            </span>
+            <!-- コメントアイコン。クリックすると詳細ページへ遷移 -->
+            <i class="fa-regular fa-comment" onclick="location.href='{{ url_for('idea_detail', idea_id=idea.id) }}';"></i>
+          </div>
+        </div>
+        
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <p>該当するアイデアはありません。</p>
+{% endif %}
+
+{% endblock %}

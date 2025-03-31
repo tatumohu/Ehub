@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>グループ化するEMAを選択</h2>
+
+<!-- カードを縦・横いずれかに並べたい場合は、下記コンテナを適宜設定 -->
+<div class="card-container">
+    {% for idea in ungrouped_ideas %}
+    <!-- ▼ カード全体をリンク化: クリックで group_select_users へ ▼ -->
+    <a href="{{ url_for('group_select_users', idea_id=idea.id) }}" class="card">
+        <strong>{{ idea.title }}</strong><br>
+        {{ idea.description[:100] }}...
+    </a>
+    {% endfor %}
+</div>
+{% endblock %}

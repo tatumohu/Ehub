@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>フォローリクエスト承認/拒否</h2>
+<p>{{ follow_request.message }}</p>
+<form method="post">
+  {{ form.hidden_tag() }}
+  <button name="accept" type="submit" value="accept">{{ form.accept.label.text }}</button>
+  <button name="reject" type="submit" value="reject">{{ form.reject.label.text }}</button>
+</form>
+{% endblock %}

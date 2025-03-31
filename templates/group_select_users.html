@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>「{{ idea.title }}」に招待するユーザーを選択</h2>
+
+<form method="post" class="form">
+  {{ form.hidden_tag() }}
+  {% for u in users %}
+    <div class="userContainer">
+      <div class="checkboxContainer">
+         <input type="checkbox" id="user_{{ u.id }}" name="selected_users" value="{{ u.id }}">
+         <label for="user_{{ u.id }}"></label>
+      </div>
+      <div class="usernameContainer">
+         {{ u.username }}
+      </div>
+    </div>
+  {% endfor %}
+  <button type="submit" class="start-group-btn">Start Group</button>
+</form>
+
+<style>
+/* フォーム全体の設定 */
+.form {
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* 各ユーザーのコンテナ：チェックボックスとユーザー名をひとまとめに */
+.userContainer {
+  display: flex;
+  align-items: center;
+  border: 2px solid #3C454C; /* 枠線は常に表示 */
+  border-radius: 0px;
+  padding: 10px 15px;
+  margin: 0px 0;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.userContainer:has(input[type="checkbox"]:checked) {
+  background-color: #f5f5f5;
+}
+
+/* チェックボックス部分を表示するコンテナ */
+.checkboxContainer {
+  position: relative;
+  /* 元々 24px だったサイズを1.5倍して36px に */
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+}
+
+/* チェックボックス自体（ブラウザのデフォルト表示を消す） */
+.checkboxContainer input[type="checkbox"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 100%;
+  border: 2px solid #3C454C;
+  border-radius: 50%;
+  outline: none;
+  cursor: pointer;
+}
+
+/* チェック時の背景色と枠線 */
+.checkboxContainer input[type="checkbox"]:checked {
+  background-color: #00FF00; /* 鮮やかな緑 */
+  border-color: #00FF00;
+}
+
+/* チェック時のチェックマーク（白色） */
+.checkboxContainer input[type="checkbox"]:checked::after {
+  content: "\2713"; /* Unicodeチェックマーク */
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 36px;  /* 円形のサイズ（36px）と同じに */
+  font-weight: 3000;  /* 太さを強調 */
+  color: #fff;
+}
+
+/* ユーザー名を表示するコンテナ */
+.usernameContainer {
+  margin-left: 10px;
+  flex-grow: 1;
+  font-size: 1em;
+  color: #3C454C;
+}
+
+/* Start Group ボタンの位置を下へ20px下げ、中央に配置 */
+.start-group-btn {
+  margin-top: 20px;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+</style>
+{% endblock %}

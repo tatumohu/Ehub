@@ -1,0 +1,275 @@
+{% set body_class = "index-page" %}
+{% extends "base.html" %}
+{% block title %}Ehub{% endblock %}
+{% block content %}
+{% block scripts %}
+
+<style>
+.footer {
+  display: none;
+}
+
+/* index ページ専用のホーム見出しのスタイル例 */
+main h2 {
+  border-bottom: 2px solid #333;
+  margin-bottom: 10px;
+  padding-bottom: 5px;
+  font-size: 1.2em;
+  font-weight: bold;
+  color: #000;
+}
+
+
+.ideas-container {
+  display: flex;
+  flex-direction: column;
+  /* 横方向の中央揃え */
+  align-items: center;
+  gap: 0px;
+  width: 90%;
+  max-width: 1000px;
+  margin: 30px auto !important;
+  padding: 0 !important;
+  box-sizing: border-box;
+}
+
+.idea-card {
+  width: 100%;
+  border: 1px solid #ccc;
+  border-radius: 0px;
+  padding: 15px;
+  background-color: #fff;
+  cursor: pointer;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.idea-card:hover {
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  transform: translateY(-2px);
+}
+
+.idea-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.user-top-photo {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid #ccc;
+}
+
+.user-name {
+  font-weight: bold;
+}
+
+.idea-card-title {
+  font-size: 1.2em;
+  font-weight: bold;
+  margin-bottom: 5px;
+  text-align: left; /* 左詰めに */
+}
+
+.idea-card-info {
+  font-size: 0.9em;
+  color: #333;
+  margin-bottom: 10px;
+  white-space: pre-line;
+  text-align: left; /* 左詰めに */
+}
+
+.idea-card-categories {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;  /* カテゴリーが多い場合に折り返す */
+  margin-bottom: 10px; /* 下との余白 */
+}
+
+.category-item {
+  background-color: #eee;
+  padding: 3px 8px;
+  border-radius: 5px;
+  color: #333;
+  font-size: 0.85em;
+  white-space: nowrap; /* 1つのカテゴリー名を折り返さない */
+}
+
+.idea-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8em;
+  color: #666;
+}
+.footer-icons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.heart-icon, .comment-icon {
+  cursor: pointer;
+}
+</style>
+{% endblock %}
+
+<main>
+  <h2>home</h2>
+  <div class="ideas-container">
+    {% if ideas and ideas|length > 0 %}
+      {% for idea in ideas %}
+        <div class="idea-card" onclick="location.href='{{ url_for('idea_detail', idea_id=idea.id) }}';">
+          <!-- ヘッダー：トップ画像 + ユーザー名 -->
+          <div class="idea-card-header">
+            <div class="user-photo">
+              {% if idea.author and idea.author.topphoto %}
+                <img src="{{ url_for('static', filename='uploads/' ~ idea.author.topphoto) }}" alt="User Photo" class="user-top-photo">
+              {% else %}
+                <img src="{{ url_for('static', filename='images/default_user.png') }}" alt="Default Photo" class="user-top-photo">
+              {% endif %}
+            </div>
+            <div class="user-name">
+              {% if idea.author %}
+                {{ idea.author.username }}
+              {% else %}
+                不明なユーザー
+              {% endif %}
+            </div>
+          </div>
+          <!-- タイトル -->
+          <div class="idea-card-title">
+            {{ idea.title }}
+          </div>
+          <!-- 概要（100文字制限の例） -->
+          <div class="idea-card-info">
+            {{ idea.description[:100] }}{% if idea.description|length > 100 %}...{% endif %}
+          </div>
+          <div class="idea-card-categories">
+            {% for cat in idea.categories %}
+              <div class="category-item">{{ cat.name }}</div>
+            {% endfor %}
+          </div>  
+          <!-- フッター：投稿日時 + ハート数 + コメント数 -->
+          <div class="idea-card-footer">
+            <div class="footer-date">
+              <span class="local-date" data-utc="{{ idea.created_at.isoformat() }}Z"></span>
+            </div>
+            <div class="footer-icons">
+              <span class="heart-count">{{ idea.flowers|length }}</span>
+              <span class="heart-icon">
+                {% if current_user in idea.flowers %}
+                  <i class="fa-solid fa-heart" style="color: #ff40ff;"></i>
+                {% else %}
+                  <i class="fa-regular fa-heart"></i>
+                {% endif %}
+              </span>
+              <span class="comment-count">{{ idea.comments.count() }}</span>
+              <i class="fa-regular fa-comment"></i>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <p>相互フォロー中ユーザーの投稿はありません。</p>
+    {% endif %}
+  </div>
+</main>
+
+<!-- 底辺の固定ナビ -->
+<div class="bottom-nav">
+  <!-- E-post -->
+  <a href="{{ url_for('post') }}" class="post-button icon-container">
+    <img src="{{ url_for('static', filename='images/e_post_icon.png') }}"
+         alt="E-post"
+         class="epost-icon" />
+    <span class="icon-label post-label">post</span>
+  </a>
+
+  <!-- E-search -->
+  <a href="{{ url_for('search') }}" class="search-button icon-container">
+    <img src="{{ url_for('static', filename='images/e_search_icon.png') }}"
+         alt="E-search"
+         class="esearch-icon" />
+    <span class="icon-label search-label">search</span>
+  </a>
+
+  <!-- E-group -->
+  <a href="{{ url_for('group') }}" class="group-button icon-container">
+    <img src="{{ url_for('static', filename='images/e_group_icon.png') }}"
+         alt="E-group"
+         class="egroup-icon" />
+    <span class="icon-label group-label">group</span>
+  </a>
+
+  <!-- E-notification -->
+  <a href="{{ url_for('e_notification') }}" class="notification-button icon-container">
+    <img src="{{ url_for('static', filename='images/e_notification_icon.png') }}"
+         alt="E-notification"
+         class="enotification-icon" />
+    <span class="icon-label notification-label">notification</span>
+  </a>
+</div>
+
+<!-- Socket.IO の読み込み -->
+<script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+
+<script>
+  function toggleHeart(event, ideaId) {
+    event.stopPropagation();
+    const csrfToken = document.querySelector('meta[name="csrf-token"]') ?
+                      document.querySelector('meta[name="csrf-token"]').getAttribute('content') : '';
+    fetch('/toggle_flower/' + ideaId, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken
+      },
+      body: JSON.stringify({})
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        // ハートのカウント更新
+        const countSpan = document.getElementById('heart-count-' + ideaId);
+        if (countSpan) {
+          countSpan.textContent = data.flower_count ;
+          if (data.action === 'added') {
+            countSpan.classList.add("active");
+          } else if (data.action === 'removed') {
+            countSpan.classList.remove("active");
+          }
+        }
+        // ハートアイコンの状態更新
+        const iconSpan = document.getElementById('heart-icon-' + ideaId);
+        if (iconSpan) {
+          const icon = iconSpan.querySelector('i');
+          if (data.action === 'added') {
+            icon.classList.remove("fa-regular");
+            icon.classList.add("fa-solid");
+            icon.style.color = "#ff40ff";
+          } else if (data.action === 'removed') {
+            icon.classList.remove("fa-solid");
+            icon.classList.add("fa-regular");
+            icon.style.color = "";
+          }
+        }
+      } else {
+        alert(data.message);
+      }
+    })
+    .catch(error => console.error('Error:', error));
+  }
+
+  var socket = io();
+  socket.on('update_flower_count', function(data) {
+    var ideaId = data.idea_id;
+    var countSpan = document.getElementById('heart-count-' + ideaId);
+    if (countSpan) {
+      countSpan.textContent = data.flower_count ;
+    }
+  });
+</script>
+{% endblock %}

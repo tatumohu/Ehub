@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}新しいアイデアを投稿 - アイデア共有アプリ{% endblock %}
+{% block content %}
+
+<style>
+    /* ページ全体のコンテナ */
+    .post-container {
+      width: 100%;
+      margin: 0 auto;
+      text-align: left;   /* 左寄せ */
+      font-size: 1em;
+      color: #000;
+    }
+    .post-container h2 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #000;
+    }
+
+    /* 下線付きラベル */
+    .label-with-underline {
+      display: inline-block;
+      margin-bottom: 8px;
+      padding-bottom: 2px;
+      border-bottom: 2px solid #333; /* 太めの下線 */
+      font-weight: bold;
+    }
+
+    /* テキスト入力やテキストエリア */
+    .post-container input[type="text"],
+    .post-container textarea {
+      width: 100%;
+      box-sizing: border-box;
+      margin-bottom: 20px;
+      font-size: 1em;
+      padding: 8px;
+      color: #000;
+    }
+
+    /* 分野のチェックボックスを2カラム表示 */
+    .categories-container {
+      column-count: 2;    /* 2列で表示 */
+      column-gap: 30px;   /* 列の間隔 */
+      margin-bottom: 20px;
+      color: #000;
+    }
+    .categories-container label {
+      display: block;     /* 各ラベルを縦に並べる */
+      margin-bottom: 5px;
+    }
+
+    /* 画面右下に固定した送信ボタン */
+    .floating-post-btn {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 999;
+      width: 60px; 
+      height: 60px;
+      border-radius: 50%;
+      border: none;
+
+      background: linear-gradient(to right, #4facfe, #00f2fe);
+      color: #fff;
+      font-size: 3.0em;
+      cursor: pointer;
+      box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .floating-post-btn:hover {
+      opacity: 0.8;
+    }
+</style>
+
+<div class="post-container">
+  <h2>New POST</h2>
+
+  <!-- フォームにidを付与しておく -->
+  <form id="postForm" method="POST" action="{{ url_for('post') }}">
+    {{ form.hidden_tag() }}
+
+    <!-- タイトル -->
+    <div class="label-with-underline">タイトル</div><br>
+    {{ form.title(size=60) }}
+
+    <!-- 概要 -->
+    <div class="label-with-underline">概要</div><br>
+    {{ form.description(rows=5) }}
+
+    <!-- 分野チェックボックス -->
+    <div class="label-with-underline">分野</div><br>
+    <div class="categories-container">
+      {% for subfield in form.categories %}
+        <label>
+          {{ subfield() }}
+          {{ subfield.label.text }}
+        </label>
+      {% endfor %}
+    </div>
+  </form>
+
+  <!-- フローティングボタンを画面右下に固定し、form="postForm" により同じフォームを送信 -->
+  <button class="floating-post-btn" type="submit" form="postForm">
+    <i class="fa-solid fa-circle-play"></i>
+  </button>
+</div>
+{% endblock %}

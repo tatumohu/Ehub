@@ -1,0 +1,1373 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #fff; /* 背景を黒 */
+    color: #000;            /* 文字を白 */
+}
+
+.header, nav, main {
+    padding: 20px;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+header {
+    background: #000;
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: fixed;
+    top: 0;
+    height: 110px; /* もともと使っているヘッダー高さ */
+    left: 0;
+    right: 0;
+    z-index: 9999;
+    /* 既存の背景、パディング等はそのまま */
+}
+
+.header-left h1, .header-left h1 a {
+    margin: 0;
+    color: #333;
+    text-decoration: none;
+    font-size: 1.5em;
+}
+
+.header-right a {
+    margin-left: 15px;
+    text-decoration: none;
+    color: #333;
+    font-size: 0.9em;
+}
+
+.header-right a:hover {
+    text-decoration: underline;
+}
+
+main {
+    background-color: #fff;
+    /* ヘッダー＋ボトムナビに被らないようにパディングを与える */
+    height: calc(100vh - (110px + 0px));
+
+    /* スクロールバーを main 内に出す場合 */
+    overflow-y: auto;
+    
+    /* 横スクロールを防ぐ場合 */
+    overflow-x: hidden;
+
+    /* 左右幅は全幅に */
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    
+    /* 上下の余白は削除し、ヘッダーとボトムナビの固定領域と重ならないように */
+    padding-top: 110px !important; /* ヘッダーが110pxの場合 */
+    padding-bottom: 0px;
+
+    margin-bottom: 0 !important;
+}
+
+.index-page main {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    box-sizing: border-box;
+    padding-top: 60px !important; /* ヘッダーが110pxの場合 */
+}
+
+footer {
+    background-color: #333;
+    position: fixed;      /* 画面に固定 */
+    left: 0;
+    right: 0;
+    bottom: 0;           /* 画面下端に配置 */
+    text-align: center;
+    font-size: 1.0em;
+    margin: 0 !important;
+    padding: 10px; /* 必要な内側余白だけ残す */
+    box-sizing: border-box;
+}
+
+.top-buttons {
+    margin: 20px 0;
+    display: inline-block;
+}
+
+.top-buttons a {
+    display: inline-block;
+    padding: 15px 30px;
+    margin: 0 20px;
+    border-radius: 50px;
+    text-decoration: none;
+    color: #fff;
+    font-size: 1.2em;
+    font-weight: bold;
+    text-align: center;
+}
+
+.icon-link {
+    /* 背景や余白を統一 */
+    background: none;
+    padding: 0;
+    margin: 0 20px; /* 同じ余白にする */
+    border-radius: 0;
+    text-decoration: none;
+    display: inline-block;
+}
+
+/* すべてのアイコンに対して、強制的に30×30pxで表示する例 */
+img.egroup-icon,
+img.enotification-icon,
+img.epost-icon,
+img.esearch-icon {
+  width: 50px !important;
+  height: 50px !important;
+  object-fit: contain; /* アイコンがはみ出ないようにする */
+  display: block;
+}
+
+/* アイコン + テキストを縦並びにするコンテナ */
+.icon-container {
+    display: flex;
+    flex-direction: column;   /* 縦に並べる */
+    align-items: center;      /* 中央揃え */
+    text-decoration: none;    /* 下線を消す */
+}
+  
+/* 画像の下に表示するラベル共通スタイル */
+.icon-label {
+    font-size: 0.8em;     /* 文字サイズ(お好みで調整) */
+    margin-top: 4px;      /* アイコンとの隙間 */
+}
+  
+/* ラベルごとの色を指定 */
+.post-label {
+    color: blue;
+}
+.group-label {
+    color: green;
+}
+.notification-label {
+    color: yellow;
+}
+.search-label {
+    color: red;
+}
+  
+.idea-date {
+    font-size: 0.9em; /* 少し小さめ */
+    color: gray;      /* グレー文字 */
+}
+
+/* recent-wrapper を画面全体の高さからヘッダーとボトムナビの高さを引いた領域にする例 */
+#scrollable-content {
+    position: absolute;
+    top: 50px; /* ヘッダーの高さ分下げる */
+    left: 0; right: 0;
+    bottom: 70px; /* フッターの高さ分上げる */
+    overflow-y: auto;
+    background: #fff; /* コンテナはダークグレー */
+    box-sizing: border-box;
+    /* ヘッダー下端からさらに20%下げる場合 => margin-top: 20vh; とか */
+    margin-top: 20vh; /* 画面の20%下げてから表示(例) */
+    padding: 20px;    /* 内容の余白 */
+}
+  
+
+/* recent 見出し（下線付き） */
+.recent-header {
+    border-bottom: 2px solid #333;
+    margin-bottom: 10px;
+    padding-bottom: 5px;
+    font-size: 1.2em;
+    font-weight: bold;
+    color: #000;
+}
+
+/* カード一覧コンテナ（縦一列に並べる） */
+.recent-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0px;
+    margin-top: 20px;
+    margin: 0 auto;
+    width: 90%;
+    max-height: 1000px; /* 必要に応じて高さを調整 */
+    overflow-y: auto;  /* 垂直スクロールを有効に */
+}
+
+/* カード本体 */
+.recent-card {
+    position: relative;
+    width: 100%;
+    background-color: #fff;         /* コンテナ背景を#333に */
+    border: 1px solid #333;
+    border-radius: 0px;
+    padding: 15px;
+    box-sizing: border-box;
+    cursor: pointer;
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+    color: #000 
+}
+
+.recent-card:hover {
+    box-shadow: 0 4px 8px #333(0,0,0,0.1);
+    transform: translateY(-2px);
+}
+
+/* 例: ユーザー写真を小さく正方形に */
+.photo-thumb {
+    width: 40px;   /* 適宜調整 */
+    height: 40px;
+    object-fit: cover;
+    border-radius: 50%; /* 丸く */
+}
+  
+.recent-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px; /* アイコンと名前の隙間 */
+    margin-bottom: 8px; /* 下との余白 */
+}
+  
+/* user-name は既存フォントサイズに合わせる等 */
+.user-name {
+    font-weight: bold;
+    /* など適宜 */
+}
+
+/* タイトル */
+.recent-card-title {
+    font-size: 1.1em;
+    font-weight: bold;
+    margin-bottom: 6px;
+    color: #000;
+    text-align: left;
+}
+
+/* 投稿者・概要エリア */
+.recent-card-info {
+    font-size: 0.9em;
+    color: #000;
+    margin-bottom: 10px;
+    text-align: left;
+}
+
+/* フッター：日付とアイコンを横並びに */
+.recent-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
+    font-size: 0.8em;
+    color: #000;
+}
+
+/* アイコン群（右側） */
+.footer-icons {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+/* 日付 */
+.footer-date {
+    text-align: left;
+    color: #000;
+}
+
+/* ★ 桜アイコン（ポスト・コメント共通）の基本スタイル：白黒（グレースケール）表示 */
+.sakura-icon {
+    font-size: 1.2em;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-block;
+    padding: 3px;
+    color: #000 !important;             /* 白黒状態 */
+    border: 1px solid #666;  /* 枠線も白黒 */
+    border-radius: 50%;
+}
+
+/* active 状態：桜アイコンが押された場合 */
+.sakura-icon.active-sakura {
+    background-color: #FF66CC;  /* ピンクサファイア色 */
+    border-color: #FF66CC;
+    color: #FF66CC;
+}
+
+/* 数値表示部分（桜のカウント）の基本状態 */
+.sakura-count {
+    color: #000;
+    transition: color 0.2s ease;
+}
+
+/* 数値表示部分 active 状態 */
+.sakura-count.active {
+    color: #FF66CC;
+}
+
+/* コメントアイコン（従来のコメント用） */
+.footer-icons i.fa-comment {
+    font-size: 1.2em;
+    color: #000 !important;
+    cursor: pointer;
+}
+
+/* ポスト詳細全体を囲むカード */
+.idea-detail-container {
+    border: 1px solid #000;      /* 薄い枠線 */
+    border-radius: 0px;          /* 角を少し丸める */
+    padding: 15px;               /* 内側余白 */
+    margin-bottom: 20px;         /* 下との間隔 */
+    text-align: left;            /* テキストは左揃え */
+    background-color: #fff;      /* 背景を白に */
+    max-width: 1200px;            /* 横幅の上限を設定 */
+    margin: 0 auto;              /* 画面中央に配置 */
+    box-sizing: border-box;
+}
+
+/* トップ画像 + ユーザー名を横並びに */
+.idea-author-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px; /* 下に隙間を作る */
+}
+  
+.idea-author-photo .photo-thumb {
+    width: 50px;   /* 大きめにするなど */
+    height: 50px;
+    object-fit: cover;
+    border-radius: 50%;
+}
+  
+.idea-author-name {
+    font-weight: bold;
+    font-size: 1.0em; /* 適宜調整 */
+}
+
+/* タイトル */
+.idea-detail-container .idea-title {
+    margin-top: 0;
+    font-size: 1.4em;
+    margin-bottom: 8px;
+    color: #000;
+}
+
+/* 本文部分 */
+.idea-detail-container .idea-description {
+    padding: 10px;
+    background: #fff;
+    border-radius: 5px;
+    white-space: pre-wrap;  /* 改行をそのまま表示 */
+    margin-bottom: 15px;
+    line-height: 1.4;
+    color: #000;
+}
+
+.idea-card-categories {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;  /* カテゴリーが多い場合に折り返す */
+    margin-bottom: 10px; /* 下との余白 */
+}
+  
+.category-item {
+    background-color: #eee;
+    padding: 3px 8px;
+    border-radius: 5px;
+    color: #333;
+    font-size: 0.85em;
+    white-space: nowrap; /* 1つのカテゴリー名を折り返さない */
+}
+
+/* メタ情報（分野・日付・ハート）をまとめるコンテナ */
+.idea-detail-container .idea-meta {
+    margin-top: 5px;
+}
+
+/* 分野 */
+.idea-detail-container .idea-category {
+    margin: 0;
+    font-size: 0.9em;
+    color: #fff;
+}
+
+/* 日付とハートアイコン部分 */
+.idea-detail-container .idea-date-heart {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* 日付 */
+.idea-detail-container .idea-date {
+    font-size: 0.9em;
+    color: #000;
+}
+
+/* ハート情報（右詰）をまとめるコンテナ */
+.idea-detail-container .heart-container {
+    margin-left: auto; /* 右詰めにするために自動マージン */
+    display: flex;
+    align-items: center;
+}
+
+/* ハートアイコンのスタイルは上記 index.html の heart-icon と統一 */
+.heart-icon {
+    font-size: 1.2em;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-block;
+    padding: 3px;
+    color: #000 !important;
+    border: none;
+}
+
+.heart-icon:hover {
+    transform: scale(1.3);
+}
+
+.heart-icon.disabled {
+    cursor: default;
+}
+
+.heart-icon.active-heart {
+    color: #ff40ff;
+}
+
+.heart-count {
+    color: #666;
+    transition: color 0.2s ease;
+}
+
+.heart-count.active {
+    color: #ff40ff;
+}
+
+/* コメント情報のためのコンテナ */
+.comment-container {
+    display: flex;
+    align-items: center;
+    gap: 5px;  /* コメントカウントとアイコン間の隙間 */
+}
+
+/* コメントアイコンのスタイル（必要に応じて） */
+.comment-icon {
+    font-size: 1.2em;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-block;
+    /* 既存の heart-icon のように、背景や枠線はなし */
+    padding: 3px;
+    color: #000;
+}
+
+.comment-icon:hover {
+    transform: scale(1.3);
+}
+
+/* コメントカード関連 */
+.comments-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0px;
+    color: #000;
+}
+
+.comment-card {
+    border: 1px solid #000 !important;
+    border-radius: 0px;
+    padding: 10px;
+    background-color: #fff;
+}
+
+.comment-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid #fff;
+    padding-bottom: 5px;
+    margin-bottom: 5px;
+}
+
+.rotated-icon {
+    transform: rotate(90deg);
+    font-size: 1.2em;
+    color: #000;
+}
+
+.comment-author-photo {
+    width: 40px;              /* お好みのサイズに */
+    height: 40px;
+    border-radius: 50%;       /* 円形に */
+    object-fit: cover;        /* 画像を枠いっぱいに表示しつつトリミング */
+}
+
+.comment-username {
+    font-weight: bold;
+    font-size: 1em;
+}
+
+.comment-text {
+    margin-bottom: 5px;
+    text-align: left;
+}
+
+.comment-heart-container {
+    margin-left: auto; /* 自動マージンを使って右側に寄せる */
+    display: flex;
+    align-items: center;
+    gap: 5px;        /* ハートの数とアイコン間の余白（お好みで調整） */
+}
+
+/* コメントフッター全体を Flex コンテナに */
+.comment-footer {
+    display: flex;
+    align-items: center;
+    gap: 10px;  /* 要素間の余白（必要に応じて調整） */
+}
+
+/* コメントの日付部分は左側にそのまま */
+.comment-footer .comment-date {
+    /* 特に追加の設定は不要。必要なら width などで調整可 */
+}
+
+/* ハートのカウントに自動マージンを設定して右詰にする */
+.comment-footer .heart-count {
+    margin-left: auto;
+}
+
+/* ハートアイコンはハートのカウントの直後に配置されるので、右側に固定される */
+.comment-footer .heart-icon {
+    /* 既存の設定をそのまま利用 */
+    font-size: 1.2em;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-block;
+    padding: 3px;
+    color: #000;
+    border: none;
+}
+
+/* 以降、必要に応じて reply-count やコメントアイコンのスタイルも調整できます */
+.comment-footer .reply-count {
+    /* 例：適宜文字サイズや余白を設定 */
+    font-size: 0.8em;
+    color: #000;
+}
+
+.comment-footer .heart-icon:hover {
+    transform: scale(1.3);
+}
+
+/* モーダル全体のオーバーレイ */
+.modal {
+    display: none;            /* 初期は非表示 */
+    position: fixed;          /* 画面全体に固定 */
+    z-index: 1000;            /* 他コンテンツの上に表示 */
+    left: 0;
+    top: 100px;
+    width: 100%;
+    height: 100%;
+    overflow: auto;           /* モーダル内容が多い場合スクロール可能 */
+    background-color: #888(0, 0, 0, 0.4);  /* 半透明の背景 */
+}
+  
+/* モーダルの内容部分 */
+.modal-content {
+    background-color: #888;
+    margin: 5% auto;          /* 上下の余白と中央揃え */
+    padding: 20px;
+    border: 1px solid #888;
+    width: 90%;               /* 幅は画面に合わせる */
+    max-width: 600px;         /* 最大幅 */
+    border-radius: 8px;
+    position: relative;
+    box-sizing: border-box;
+}
+  
+/* モーダル内のクローズボタン */
+.modal-content .close {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    color: #000;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+  
+.modal-content .close:hover,
+.modal-content .close:focus {
+    color: #000;
+    text-decoration: none;
+    cursor: pointer;
+}  
+
+/* 親コメントカードはそのまま */
+.comment-card {
+    /* 既存のスタイルを使用 */
+    border: 1px solid #333;
+    border-radius: 0px;
+    padding: 10px;
+    background-color: #fff;
+    margin-bottom: 15px;
+    box-sizing: border-box;
+}
+
+/* 返信一覧用のコンテナ */
+.reply-container {
+    margin-top: 10px;
+    margin-left: auto;   /* 親コメントカードの右側に寄せる */
+    width: 100%;          /* 親コメントカードの横幅の60%程度にする（調整可能） */
+}
+
+/* 返信カードのスタイル */
+.reply-card {
+    border: 1px solid #333;
+    border-radius: 0px;
+    padding: 8px;
+    margin-bottom: 8px;
+    background-color: #fff;
+    box-sizing: border-box;
+    text-align: left;  /* すべてのテキストを左揃えに */
+}
+
+/* 返信ヘッダー */
+.reply-header {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.9em;
+}
+
+/* 必要に応じて返信テキストのスタイルも調整 */
+.reply-text {
+    font-size: 0.95em;
+    line-height: 1.4;
+    color: #000;
+    text-align: left;
+}
+
+.reply-footer {
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.reply-footer .reply-date {
+    /* 左側にそのまま表示 */
+    font-size: 0.8em;
+    color: #000;
+    text-align: left;
+    margin-top: 5px;
+}
+
+.reply-footer .reply-heart-info {
+    margin-left: auto;  /* 日付部分との間に自動マージンを入れて右詰め */
+    display: flex;
+    align-items: center;
+    gap: 5px;         /* 必要に応じて調整 */
+}
+
+/* ステータスメッセージ */
+.status-message {
+    font-size: 0.9em;
+    margin: 10px 0;
+    padding: 5px;
+    border-radius: 5px;
+}
+
+.status-message.follower {
+    background-color: #fff;
+    color: #000;
+}
+
+.status-message.pending {
+    background-color: #fff;
+    color: #000;
+}
+
+.status-message.rejected {
+    background-color: #fff;
+    color: #000;
+}
+
+.status-message.accepted {
+    background-color: #fff;
+    color: #000;
+}
+
+.status-message.not-follower {
+    background-color: #fff;
+    color: #000;
+}
+
+.follow-request-card {
+    border: 1px solid #666;
+    padding: 20px;
+    border-radius: 10px;
+}
+
+.follow-button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 20px;
+    font-weight: bold;
+    color: #000;
+    cursor: pointer;
+    margin-right: 10px;
+}
+
+.follow-button.accept {
+    background: linear-gradient(to right, #4facfe, #00f2fe);
+}
+
+.follow-button.reject {
+    background: linear-gradient(to right, #f953c6, #b91d73);
+}
+
+/* ▼ ナインドットアイコン (app-menu) + ポップオーバー */
+
+/* コンテナ */
+.app-menu-container {
+    position: relative;
+    display: inline-block; 
+    z-index: 999999 !important;
+    margin-right: 15px; /* ユーザー設定アイコンとの余白 */
+}
+
+/* ナインドットアイコンのボタン */
+.app-menu-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.2em;
+    color: #333;
+    text-decoration: none;
+    padding: 0;
+}
+.app-menu-btn:hover {
+    text-decoration: underline;
+}
+
+/* ポップオーバー本体 */
+.app-menu-popup {
+    position: absolute;
+    top: 40px; /* アイコンの下あたり */
+    right: 0;  /* 右端寄せ */
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 10px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    width: 200px; /* 適宜調整 */
+    z-index: 999999 !important; /* 親の z-index よりさらに高く */
+    display: none; /* 初期は非表示 */
+    
+    /* gridレイアウト */
+    grid-template-columns: repeat(2, 1fr);
+    gap: 5px;
+
+    /* ここを追加 */
+    justify-items: center;   /* 各セルの水平中央揃え */
+    align-items: center;     /* 各セルの垂直中央揃え */
+}
+
+/* ポップオーバーが開いているとき */
+.app-menu-popup.show {
+    display: grid; /* grid表示に切り替え */
+}
+
+/* 各アイコンリンク */
+.app-menu-icon {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    color: #333;
+    margin: 0;
+    padding: 0;
+}
+
+/* アイコン画像サイズなど */
+.app-menu-icon img {
+    width: 40px;
+    height: auto;
+    margin-bottom: 5px; /* アイコン下に余白 */
+}
+
+/* ユーザー設定ポップオーバー */
+.user-settings-container {
+    position: relative;
+    display: inline-block;
+    margin-left: 15px;
+}
+
+.user-settings-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.1em; /* フォントサイズを大きく */
+    color: #fff;
+    text-decoration: none;
+    padding: 0;
+}
+
+.user-settings-btn:hover {
+    text-decoration: underline;
+}
+
+.user-settings-popup {
+    position: absolute;
+    top: 30px;
+    right: 0;
+    background: #333; /* ダークな背景 */
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    padding: 5px 0;
+    display: none;
+    box-shadow: none; /* 影を削除 */
+    min-width: 180px;
+    z-index: 999;
+}
+
+.user-settings-popup.show {
+    display: block;
+}
+
+.user-settings-popup a {
+    display: block;
+    color: white; /* 文字を白に */
+    text-decoration: none;
+    padding: 10px 15px;
+    font-size: 1.1em; /* 文字を大きく */
+    font-weight: bold; /* 強調 */
+    border-bottom: 2px solid white; /* 下線を追加 */
+}
+
+.user-settings-popup a:last-child {
+    border-bottom: none; /* 最後の項目の下線は不要 */
+}
+
+.user-settings-popup a:hover {
+    background-color: #e0e0e0;
+    color: #333; /* ホバー時に色を変更 */
+    border-bottom: 2px solid #ccc; /* ホバー時の下線を薄いグレーに */
+}
+
+/* plus-icon, card-container, egroup-container, などはそのまま */
+.card-container {
+    width: 100%;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0px;
+}
+  
+.card {
+    display: block;
+    width: 100%;
+    border: 1px solid #ccc;
+    border-radius: 0px;
+    background-color: #fff;
+    color: #333;
+    text-decoration: none;
+    text-align: left;
+    padding: 15px;
+    box-sizing: border-box;
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+  
+.card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    transform: translateY(-2px);
+}
+
+.card strong {
+    font-size: 1.1em;
+    margin-bottom: 5px;
+    display: block;
+}
+
+.egroup-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0px;
+    margin-bottom: 30px;
+}
+
+.egroup-block {
+    position: relative;
+    width: 60vw;
+    height: 65px;
+    border: 1px solid #ccc;
+    border-radius: 0px;
+    background-color: #fff;
+    text-align: left;
+    padding: 10px;
+    box-sizing: border-box;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    overflow: hidden;
+}
+
+.egroup-block:hover {
+    transform: scale(1.05);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+
+.unread-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: #ff4d4f;
+    color: #fff;
+    font-size: 0.75em;
+    padding: 3px 6px;
+    border-radius: 9999px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.crown-icon { }
+
+.plus-icon {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    font-size: 3em;
+    z-index: 999;
+}
+
+.plus-icon a {
+    background: linear-gradient(to right, #00e676, #00c853);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-decoration: none;
+}
+
+.plus-icon a:hover {
+    opacity: 0.6;
+}
+  
+/* チャット関連はそのまま */
+.chat-page-background {
+    background-color: #f9f1f8;
+    padding: 20px;
+    min-height: 100vh;
+    box-sizing: border-box;
+}
+
+.chat-page-background h2 {
+    text-align: left;
+    margin-bottom: 20px;
+}
+
+.chat-container {
+    background-color: #fff;
+    border-radius: 10px;
+    width: 90%;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 10px;
+    height: 400px;
+    overflow-y: auto;
+    box-sizing: border-box;
+}
+
+.chat-line {
+    display: flex;
+    margin-bottom: 10px;
+}
+
+.my-message {
+    justify-content: flex-end;
+}
+
+.other-message {
+    justify-content: flex-start;
+}
+
+.message-bubble {
+    max-width: 60%;
+    padding: 10px 15px;
+    border-radius: 16px;
+    margin: 2px;
+    font-size: 0.95em;
+}
+
+.my-message .message-bubble {
+    background-color: #4B4B60;
+    color: #fff;
+}
+
+.other-message .message-bubble {
+    background-color: #e8e4ea;
+    color: #333;
+}
+
+.message-text {
+    margin: 0;
+}
+
+.message-date {
+    text-align: right;
+    font-size: 0.7em;
+    color: #999;
+    margin-top: 5px;
+}
+
+.chat-input-area {
+    display: flex;
+    align-items: center;
+    width: 90%;
+    max-width: 600px;
+    margin: 20px auto 0 auto;
+    background-color: #f3e7f0;
+    border-radius: 30px;
+    padding: 10px;
+    box-sizing: border-box;
+    position: relative;
+}
+
+.chat-input-area input[type="text"] {
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 1em;
+    color: #333;
+    margin: 0 10px;
+}
+
+.chat-icon-button {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 10px;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.chat-icon-button i {
+    font-size: 14px;
+    color: #333;
+}
+
+.plus-btn {
+    margin-left: 5px;
+}
+
+.mic-btn, .send-btn { }
+
+.system-message {
+    text-align: center;
+    color: #888;
+    font-size: 0.9em;
+    margin: 10px 0;
+}
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+.follow-request-card {
+    border: 1px solid #ccc;
+    padding: 20px;
+    border-radius: 10px;
+}
+
+.follow-button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 20px;
+    font-weight: bold;
+    color: #fff;
+    cursor: pointer;
+    margin-right: 10px;
+}
+
+.follow-button.accept {
+    background: linear-gradient(to right, #4facfe, #00f2fe);
+}
+
+.follow-button.reject {
+    background: linear-gradient(to right, #f953c6, #b91d73);
+}
+
+/* ボトムナビ全体 */
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 9999;
+    background: #000;
+    display: flex;
+    justify-content: space-around; /* 横並びにアイコンを配置 */
+    align-items: center;
+    height: 90px; /* 高さを固定 */
+    box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
+    box-sizing: border-box;
+}
+  
+/* ボトムナビの各リンク */
+.bottom-nav a {
+    display: flex;
+    flex-direction: column;  /* アイコン＋テキストを縦並びにする例 */
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    text-decoration: none;
+    font-size: 0.9em;
+    width: 25%; /* 4つなら25%ずつ */
+}
+
+/* ユーザー設定ポップオーバー */
+.user-settings-container {
+    position: relative;
+    display: inline-block;
+    margin-left: 15px;
+}
+
+.user-settings-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.9em;
+    color: #333;
+    text-decoration: none;
+    padding: 0;
+}
+
+.user-settings-btn:hover {
+    text-decoration: underline;
+}
+
+.user-settings-popup {
+    position: absolute;
+    top: 30px;
+    right: 0;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    padding: 5px 0;
+    display: none;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    min-width: 150px;
+    z-index: 999;
+}
+
+.user-settings-popup.show {
+    display: block;
+}
+
+.user-settings-popup a {
+    display: block;
+    color: #333;
+    text-decoration: none;
+    padding: 8px 12px;
+    font-size: 0.9em;
+}
+
+.user-settings-popup a:hover {
+    background-color: #f0f0f0;
+}
+
+.egroup-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0px;
+    margin-bottom: 30px;
+}
+
+.egroup-block {
+    position: relative;
+    width: 100%;
+    height: 65px;
+    border: 1px solid #ccc;
+    border-radius: 0px;
+    background-color: #fff;
+    text-align: left;
+    padding: 10px;
+    box-sizing: border-box;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    overflow: hidden;
+}
+
+.egroup-block:hover {
+    transform: scale(1.05);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+
+.unread-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: #ff4d4f;
+    color: #fff;
+    font-size: 0.75em;
+    padding: 3px 6px;
+    border-radius: 9999px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.crown-icon { }
+
+.plus-icon {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    font-size: 3em;
+    z-index: 999;
+}
+
+.plus-icon a {
+    background: linear-gradient(to right, #00e676, #00c853);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-decoration: none;
+}
+
+.plus-icon a:hover {
+    opacity: 0.6;
+}
+
+/* チャット関連はそのまま */
+.chat-page-background {
+    background-color: #f9f1f8;
+    padding: 20px;
+    min-height: 100vh;
+    box-sizing: border-box;
+}
+
+.chat-page-background h2 {
+    text-align: left;
+    margin-bottom: 20px;
+}
+
+.chat-container {
+    background-color: #fff;
+    border-radius: 10px;
+    width: 90%;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 10px;
+    height: 400px;
+    overflow-y: auto;
+    box-sizing: border-box;
+}
+
+.chat-line {
+    display: flex;
+    margin-bottom: 10px;
+}
+
+.my-message {
+    justify-content: flex-end;
+}
+
+.other-message {
+    justify-content: flex-start;
+}
+
+.message-bubble {
+    max-width: 60%;
+    padding: 10px 15px;
+    border-radius: 16px;
+    margin: 2px;
+    font-size: 0.95em;
+}
+
+.my-message .message-bubble {
+    background-color: #4B4B60;
+    color: #fff;
+}
+
+.other-message .message-bubble {
+    background-color: #e8e4ea;
+    color: #333;
+}
+
+.message-text {
+    margin: 0;
+}
+
+.message-date {
+    text-align: right;
+    font-size: 0.7em;
+    color: #999;
+    margin-top: 5px;
+}
+
+.chat-input-area {
+    display: flex;
+    align-items: center;
+    width: 90%;
+    max-width: 600px;
+    margin: 20px auto 0 auto;
+    background-color: #f3e7f0;
+    border-radius: 30px;
+    padding: 10px;
+    box-sizing: border-box;
+    position: relative;
+}
+
+.chat-input-area input[type="text"] {
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 1em;
+    color: #333;
+    margin: 0 10px;
+}
+
+.chat-icon-button {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 10px;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.chat-icon-button i {
+    font-size: 14px;
+    color: #333;
+}
+
+.plus-btn {
+    margin-left: 5px;
+}
+
+.mic-btn, .send-btn { }
+
+.system-message {
+    text-align: center;
+    color: #888;
+    font-size: 0.9em;
+    margin: 10px 0;
+}

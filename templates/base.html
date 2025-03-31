@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>{% block title %}Idea App{% endblock %}</title>
+
+    <!-- ▼ Font Awesome（無料CDNなど） -->
+    <link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css"
+      integrity="sha512-..."
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer" />
+
+    <!-- ▼ メインのCSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <style>
+        /* 一部インラインスタイル例 */
+        .header-left h1 { margin: 0; }
+        .header-left h1 a { text-decoration: none; color: #333; }
+        .header-right a { margin-left: 20px; text-decoration: none; color: #333; }
+        .header-right span { margin-right: 10px; }
+
+        .ehub-logo {
+            max-height: 50px;   /* ヘッダーに合うように画像の高さを調整 */
+            height: auto;
+            width: auto;        /* 比率を保ったまま拡大・縮小 */
+            display: block;     /* 必要に応じてブロック要素化 */
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+        header {
+            background: #000;
+            padding: 0px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 9999;
+            height: 110px; /* ヘッダーの高さを仮定 */
+            /* 既存の背景、パディング等はそのまま */
+        }
+        
+        /* 右側を flex にし、アイコン同士の余白を 15px */
+        .header-right {
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          gap: 15px;
+        }
+
+        /* ▼ ナインドットアイコン (app-menu) + ポップオーバー */
+        /* コンテナ */
+        .app-menu-container {
+            position: relative;
+            display: inline-block; 
+            margin-right: 15px; /* ユーザー設定アイコンとの余白 */
+        }
+
+        /* ナインドットアイコンボタン */
+        .app-menu-btn {
+          background: none;
+          border: none;
+          cursor: pointer;
+          font-size: 1.2em;
+          color: #fff; /* 黒背景なら白文字 */
+          width: 40px;
+          height: 40px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .app-menu-btn:hover {
+            text-decoration: underline;
+        }
+
+        /* ポップオーバー本体 */
+        .app-menu-popup {
+            position: absolute;
+            top: 40px; /* アイコンの下あたり */
+            right: 0;  /* 右端寄せ */
+            background: #333;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 10px;
+            box-shadow: 0 3px 6px rgba(180, 180, 180, 0.3); /* もっと柔らかい影 */
+            width: 200px; /* 適宜調整 */
+            z-index: 999;
+            display: none; /* 初期は非表示 */
+            
+            /* gridレイアウト */
+            grid-template-columns: repeat(2, 1fr);
+            gap: 5px;
+
+            /* ここを追加 */
+            justify-items: center;   /* 各セルの水平中央揃え */
+            align-items: center;     /* 各セルの垂直中央揃え */
+        }
+
+        /* ポップオーバーが開いているとき */
+        .app-menu-popup.show {
+            display: grid; /* grid表示に切り替え */
+        }
+
+        /* 各アイコンリンク */
+        .app-menu-icon {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          text-decoration: none;
+          color: #333;
+          margin: 0;
+          padding: 0;
+        }
+
+        /* アイコン画像サイズなど */
+        .app-menu-icon img {
+            width: 40px;
+            height: auto;
+            margin-bottom: 5px; /* アイコン下に余白 */
+        }
+
+        /* ユーザー設定ポップオーバー */
+        .user-settings-container {
+            position: relative;
+            display: inline-block;
+            margin-left: 15px;
+        }
+
+        .user-settings-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.1em; /* フォントサイズを大きく */
+            color: #fff;
+            text-decoration: none;
+            padding: 0;
+        }
+
+        .user-settings-btn:hover {
+            text-decoration: underline;
+        }
+
+        .topphoto-icon {
+          width: 32px;          /* お好みのサイズ */
+          height: 32px;
+          position: relative;
+          left: -30px; /* 左へ10px移動 */
+          border-radius: 50%;   /* 円形にする */
+          object-fit: cover;    /* 画像を要素にフィットさせる */
+        }
+
+        .user-settings-popup {
+            position: absolute;
+            top: 30px;
+            right: 0;
+            background: #333; /* ダークな背景 */
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 5px 0;
+            display: none;
+            box-shadow: none; /* 影を削除 */
+            min-width: 180px;
+            z-index: 999;
+        }
+
+        .user-settings-popup.show {
+            display: block;
+        }
+
+        .user-settings-popup a {
+            display: block;
+            color: white; /* 文字を白に */
+            text-decoration: none;
+            padding: 10px 15px;
+            font-size: 1.1em; /* 文字を大きく */
+            font-weight: bold; /* 強調 */
+            border-bottom: 2px solid white; /* 下線を追加 */
+        }
+
+        .user-settings-popup a:last-child {
+            border-bottom: none; /* 最後の項目の下線は不要 */
+        }
+
+        .user-settings-popup a:hover {
+            background-color: #e0e0e0;
+            color: #333; /* ホバー時に色を変更 */
+            border-bottom: 2px solid #ccc; /* ホバー時の下線を薄いグレーに */
+        }
+
+        .auth-container {
+          position: relative;
+          display: inline-block;
+          transform: translateY(-20px);
+        }
+        .app-menu-btn {
+          background: none;
+          border: none;
+          cursor: pointer;
+          font-size: 1.2em;
+          color: #fff; /* ヘッダーが黒背景なら白文字 */
+        }
+        .auth-icon-btn {
+          background: none;
+          border: none;
+          cursor: pointer;
+          font-size: 1.2em;
+          color: #fff;
+          width: 40px;   /* ナインドットと同じ幅 */
+          height: 40px;  /* ナインドットと同じ高さ */
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .auth-popup {
+          position: absolute;
+          top: 40px;
+          right: 0;
+          background: #fff;
+          border: 1px solid #ccc;
+          border-radius: 5px;
+          padding: 5px 0;
+          display: none;
+          box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+          min-width: 120px;
+          z-index: 999;
+        }
+        .auth-popup.show {
+          display: block;
+        }
+        .auth-popup a {
+          display: block;
+          text-decoration: none;
+          color: #333;
+          padding: 8px 12px;
+          font-size: 0.9em;
+        }
+        .auth-popup a:hover {
+          background-color: #f0f0f0;
+        }
+
+        .ehub-logo,
+        .app-menu-container,
+        .user-settings-container {
+        transform: translateY(-20px);
+        }
+        
+        /* 戻るボタン */
+        .back-button-link {
+        position: absolute;
+        bottom: 10px; /* ヘッダーの下端付近に配置 */
+        left: 20px;
+        color: #fff; /* 白文字 */
+        font-size: 1.4em;
+        text-decoration: none;
+        /* transform: scaleX(1.80); ← 大きすぎる場合は削除/調整 */
+        transform: none; /* 例: 拡大しないように */
+        }
+
+        /* recentアイコン (画像) */
+        .recent-icon-link {
+        position: absolute;
+        bottom: 5px;  /* 戻るボタンと揃えて下端付近 */
+        left: 16%;     /* 既存の「left:16%」の配置を維持 */
+        width: 40px;
+        height: 40px;
+        text-decoration: none;
+        cursor: pointer;
+        }
+
+        .recent-icon-img {
+            width: 100%;
+            height: auto;
+            border-radius: 5px;
+            display: block;
+        }
+
+    </style>
+</head>
+<body class="{{ body_class|default('') }}">
+    <header>
+        <div class="header-left">
+            <h1>
+                <a href="{{ url_for('index') }}">
+                    <img src="{{ url_for('static', filename='images/ehub_logo.png') }}" 
+                        alt="Ehub Logo" 
+                        class="ehub-logo">
+                </a>
+            </h1>
+        </div>
+        <!-- ヘッダー右側部分 -->
+        <div class="header-right" style="display: flex; align-items: center; justify-content: flex-end; gap: 15px;">
+          <!-- ▼ ナインドットアイコン + ポップオーバー ▼ -->
+          <div class="app-menu-container">
+              <button type="button" class="app-menu-btn">
+                  <i class="fa-solid fa-th"></i>
+              </button>
+              <div class="app-menu-popup">
+                  <!-- E-postアイコン -->
+                  <a href="{{ url_for('post') }}" class="app-menu-icon">
+                      <img src="{{ url_for('static', filename='images/e_post_icon.png') }}" alt="E-post">
+                  </a>
+                  <!-- E-searchアイコン -->
+                  <a href="{{ url_for('search') }}" class="app-menu-icon">
+                      <img src="{{ url_for('static', filename='images/e_search_icon.png') }}" alt="E-search">
+                  </a>
+                  <!-- E-groupアイコン -->
+                  <a href="{{ url_for('group') }}" class="app-menu-icon">
+                      <img src="{{ url_for('static', filename='images/e_group_icon.png') }}" alt="E-group">
+                  </a>
+                  <!-- E-notificationアイコン -->
+                  <a href="{{ url_for('e_notification') }}" class="app-menu-icon">
+                      <img src="{{ url_for('static', filename='images/e_notification_icon.png') }}" alt="E-notification">
+                  </a>
+              </div>
+          </div>
+          <!-- ▲ ナインドットアイコン + ポップオーバー ▲ -->
+
+          {% if current_user.is_authenticated %}
+          <!-- ▼ ログイン中の場合：ユーザー設定アイコン（トップ画像がある場合はそれを表示し、リンクでマイページへ遷移）▼ -->
+          <div class="user-settings-container">
+              <a href="{{ url_for('my_user_info') }}">
+                  {% if current_user.topphoto %}
+                      <img src="{{ url_for('static', filename='uploads/' ~ current_user.topphoto) }}"
+                          alt="Profile"
+                          class="topphoto-icon">
+                  {% else %}
+                      <i class="fa-solid fa-user"></i>
+                  {% endif %}
+              </a>
+          </div>
+          {% else %}
+          <!-- ▼ 未ログインの場合：人型アイコン → ポップオーバーで 新規登録/ログイン ▼ -->
+          <div class="auth-container">
+            <button id="authIcon" class="auth-icon-btn">
+              <i class="fa-solid fa-user"></i>
+            </button>
+            <div class="auth-popup" id="authPopup">
+              <a href="{{ url_for('register') }}">新規登録</a>
+              <a href="{{ url_for('login') }}">ログイン</a>
+            </div>
+          </div>
+          {% endif %}
+          <!-- ▲ ユーザー設定アイコン ▼ -->
+      </div>
+
+      <!-- ▼ ヘッダーの直下に「戻るボタン」を紫の濃いグラデーションで配置 -->
+      <a href="javascript:history.back();" class="back-button-link">
+        <i class="fa-solid fa-angles-left"></i> 
+      </a>
+      <a href="{{ url_for('recent_page') }}" class="recent-icon-link">
+        <img src="{{ url_for('static', filename='images/new_recent_icon.png') }}"
+            alt="New"
+            class="recent-icon-img" />
+      </a>
+    </header>
+
+    <main>
+        {% block content %}{% endblock %}
+        
+        <!-- Recent 一覧のラッパー（初期は非表示） -->
+        <div id="recent-container-wrapper" style="display: none; background: #fff; padding: 20px;">
+          <!-- ここに recent_ideas の一覧表示（例として recent_card をループで表示） -->
+          {% if recent_ideas and recent_ideas|length > 0 %}
+            <div class="recent-container">
+              {% for idea in recent_ideas %}
+                <div class="recent-card" onclick="location.href='{{ url_for('idea_detail', idea_id=idea.id) }}';">
+                  <div class="recent-card-title">{{ idea.title }}</div>
+                  <div class="recent-card-info">
+                    {{ idea.author.username }}<br>
+                    {{ idea.description[:100] }}...
+                  </div>
+                  <div class="recent-card-footer">
+                    <div class="footer-date">
+                      <span class="local-date" data-utc="{{ idea.created_at.isoformat() }}Z"></span>
+                    </div>
+                    <div class="footer-icons">
+                      <span class="heart-count" id="heart-count-{{ idea.id }}">
+                        {{ idea.flowers|length }}
+                      </span>
+                      <span class="heart-icon" onclick="toggleHeart(event, '{{ idea.id }}')" id="heart-icon-{{ idea.id }}">
+                        {% if current_user.is_authenticated and current_user in idea.flowers %}
+                          <i class="fa-solid fa-heart" style="color: #ff40ff;"></i>
+                        {% else %}
+                          <i class="fa-regular fa-heart"></i>
+                        {% endif %}
+                      </span>
+                      <span class="comment-count" id="comment-count-{{ idea.id }}">
+                        {{ idea.comments.count() }}
+                      </span>
+                      <i class="fa-regular fa-comment" onclick="location.href='{{ url_for('idea_detail', idea_id=idea.id) }}';"></i>
+                    </div>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <p>直近1週間以内に投稿されたアイデアはありません。</p>
+          {% endif %}
+        </div>
+    </main>
+
+    <!-- ▼ フッター前: 共通のJSをここにまとめる -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // ユーザー設定ボタンのポップアップ制御
+        const userSettingsBtn = document.querySelector('.user-settings-btn');
+        const userSettingsPopup = document.querySelector('.user-settings-popup');
+
+        if(userSettingsBtn && userSettingsPopup) {
+          userSettingsBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              userSettingsPopup.classList.toggle('show');
+          });
+          document.addEventListener('click', () => {
+              userSettingsPopup.classList.remove('show');
+          });
+          userSettingsPopup.addEventListener('click', (e) => {
+              e.stopPropagation();
+          });
+        }
+
+        // 2) 未ログイン時のauthIcon（新規登録/ログイン用）
+        const authIcon = document.getElementById('authIcon');
+        const authPopup = document.getElementById('authPopup');
+        if (authIcon && authPopup) {
+          authIcon.addEventListener('click', (e) => {
+            e.stopPropagation();
+            authPopup.classList.toggle('show');
+          });
+          document.addEventListener('click', () => {
+            authPopup.classList.remove('show');
+          });
+          authPopup.addEventListener('click', (e) => {
+            e.stopPropagation();
+          });
+        }
+
+        // ▼ ナインドットアイコンのポップオーバー
+        const appMenuBtn = document.querySelector('.app-menu-btn');
+        const appMenuPopup = document.querySelector('.app-menu-popup');
+        if(appMenuBtn && appMenuPopup) {
+          appMenuBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            appMenuPopup.classList.toggle('show');
+          });
+          document.addEventListener('click', () => {
+            appMenuPopup.classList.remove('show');
+          });
+          appMenuPopup.addEventListener('click', (e) => {
+            e.stopPropagation();
+          });
+        }
+
+        // ▼ Recent アイコンのクリックで recent コンテンツの表示をトグル
+        const recentToggle = document.getElementById('recent-toggle');
+        const recentContainer = document.getElementById('recent-container-wrapper');
+        const bottomNav = document.querySelector('.bottom-nav');
+        if(recentToggle && recentContainer && bottomNav) {
+            recentToggle.addEventListener('click', function(e) {
+                e.stopPropagation();
+                if(recentContainer.style.display === 'none' || recentContainer.style.display === '') {
+                    recentContainer.style.display = 'block';
+                    bottomNav.style.display = 'none';  // recent表示中はbottom-navを非表示
+                } else {
+                    recentContainer.style.display = 'none';
+                    bottomNav.style.display = 'flex';   // 非表示解除（flexなど元のレイアウトに合わせる）
+                }
+            });
+        }
+
+        // 既にある .local-date 要素を一括ローカル時刻変換
+        convertLocalDates(document.querySelectorAll('.local-date'));
+    });
+
+    /**
+     * .local-date 要素群をローカル時刻へ変換する関数
+     * data-utc 属性に ISO文字列 (UTC) が入っている前提
+     */
+    function convertLocalDates(elements) {
+      elements.forEach(el => {
+        const utcString = el.getAttribute('data-utc');
+        if (utcString) {
+          const d = new Date(utcString);
+          el.textContent = d.toLocaleString(); 
+        }
+      });
+    }
+    </script>
+
+    {% block scripts %}
+    {% endblock %}
+
+    <footer>
+        <p>&copy; 2025 Ehub</p>
+    </footer>
+
+</body>
+</html>

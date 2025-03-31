@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>E-group</h2>
+
+<!-- 右下にプラスマーク固定する例 -->
+<div class="plus-icon">
+  <a href="{{ url_for('group_plus') }}">
+    <i class="fa-solid fa-plus"></i>
+  </a>
+</div>
+
+<div class="egroup-container">
+  {% for idea in unified_ideas %}
+  <div class="egroup-block" onclick="openChatWindow({{ idea.id }})">
+    <!-- 王冠アイコン + タイトル -->
+    <strong>
+      {% if idea.is_host %}
+        <i class="fa-solid fa-crown" style="color: #FFD43B; margin-right: 5px;"></i>
+      {% endif %}
+      {{ idea.title }}
+    </strong>
+    <br>
+    <!-- 最新メッセージのプレビュー -->
+    {% if idea.last_message %}
+      <div class="latest-preview">
+        {{ idea.last_message.content[:20] }}...
+      </div>
+    {% else %}
+      <div class="latest-preview" style="color: #999;">(まだメッセージがありません)</div>
+    {% endif %}
+
+    {% if idea.unread_count > 0 %}
+      <div style="position:absolute; top:10px; right:10px;">
+        <span id="badge_{{ idea.id }}"
+              style="background-color:red; color:white; border-radius:10px; padding:2px 6px; font-size:0.8em;">
+          {{ idea.unread_count }}
+        </span>
+      </div>
+      {% else %}
+      <span id="badge_{{ idea.id }}" style="display:none;"></span>
+      {% endif %}
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const socket = io();
+
+  // E-groupメインルームに参加すれば、他ユーザーのsend_messageを捕捉→プレビュー更新など可能
+  socket.emit('join_egroup_main');  // サーバでjoin_room('egroup_main')など定義してもOK
+
+  // update_preview: 新メッセージが来た際にプレビューを差し替える
+  socket.on('update_preview', data => {
+    const ideaId = data.idea_id;
+    const previewEl = document.getElementById("preview_" + ideaId);
+    if(previewEl) {
+      // 例: 20文字+ "..." 
+      previewEl.textContent = data.preview;
+    }
+
+    // 送信者が自分でなければバッジ++ 
+    if(data.sender_id != {{ current_user.id }}) {
+      const badgeEl = document.getElementById("badge_" + ideaId);
+      if(badgeEl) {
+        let currentVal = parseInt(badgeEl.textContent) || 0;
+        currentVal++;
+        badgeEl.textContent = currentVal;
+        badgeEl.style.display = (currentVal>0)? 'inline-block':'none';
+      }
+    }
+  });
+
+  // update_unread_count: 誰か(自分含む)が既読にしたらバッジを再計算
+  socket.on('update_unread_count', data => {
+    // data = { idea_id, user_id, unread_count }
+    // 未読を0にするのは "そのユーザー" のみ
+    if(data.user_id == {{ current_user.id }}) {
+      // 自分のバッジを上書き
+      const badgeEl = document.getElementById("badge_" + data.idea_id);
+      if(badgeEl) {
+        if(data.unread_count > 0) {
+          badgeEl.textContent = data.unread_count;
+          badgeEl.style.display = 'inline-block';
+        } else {
+          badgeEl.textContent = '0';
+          badgeEl.style.display = 'none';
+        }
+      }
+    }
+  });
+});
+
+// ポップアップでchatを開く
+function openChatWindow(ideaId) {
+  window.open("/group_chat/" + ideaId, "_blank", "width=400,height=600");
+}
+</script>
+{% endblock %}

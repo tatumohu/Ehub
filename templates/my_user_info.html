@@ -1,0 +1,357 @@
+{% extends "base.html" %}
+{% block title %}マイページ{% endblock %}
+
+{% block content %}
+<style>
+  .my-user-info-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+    text-align: left; /* 全体は左揃え */
+    position: relative; /* 編集アイコンを右上に配置するため */
+  }
+
+  /* 右上の編集アイコンボタン */
+  .my-user-edit-icon {
+    position: absolute;
+    top: 20px; 
+    right: 20px;
+    cursor: pointer;
+    font-size: 1.2em;
+    color: #333;
+  }
+
+  /* ポップオーバー (既存の user-settings-popup を参考に) */
+  .my-user-edit-popup {
+    position: absolute;
+    top: 50px;  /* アイコンの少し下 */
+    right: 20px;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    padding: 5px 0;
+    display: none; /* 初期非表示 */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    min-width: 150px;
+    z-index: 999;
+  }
+  .my-user-edit-popup.show {
+    display: block;
+  }
+  .my-user-edit-popup a {
+    display: block;
+    color: #333;
+    text-decoration: none;
+    padding: 8px 12px;
+    font-size: 0.9em;
+  }
+  .my-user-edit-popup a:hover {
+    background-color: #f0f0f0;
+  }
+
+  /* トップ画像を中央に配置 */
+  .top-photo-center {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  .user-top-photo {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #ccc;
+  }
+
+  /* ユーザー名＋フォローボタンの行 */
+  .user-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    width: 100%;
+  }
+  .user-name-left {
+    font-size: 1.2em;
+    font-weight: bold;
+    text-align: left;
+  }
+  /* フォローボタン（自分の場合は follower アイコン） */
+  .follow-btn {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.9em;
+    cursor: not-allowed;
+  }
+  .follower {
+    background-color: #fff;
+    color: #000;
+    border: 1px solid #666;
+  }
+  /* 相互フォロー数の表示 */
+  .mutual-count {
+    margin-left: 8px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  /* 以下、モーダルのスタイル */
+  .modal {
+    display: none;
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    z-index: 10000;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-content {
+    background: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    max-width: 400px;
+    width: 90%;
+    margin: 0 auto;
+  }
+  .modal-title {
+    font-weight: bold;
+    margin-bottom: 10px;
+    text-align: center;
+  }
+  .followed-list-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .followed-list-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .followed-list-img {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid #ccc;
+  }
+  .followed-list-username {
+    font-size: 0.95em;
+    font-weight: bold;
+  }
+  .followed-btn {
+    background-color: #333;
+    color: #FF0000;
+    border: none;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 0.8em;
+  }
+
+  /* Post EMA / Post Solution を横並びに配置 */
+  .post-count-row {
+    display: flex;
+    gap: 30px; 
+    margin-bottom: 20px;
+  }
+  .post-count-item {
+    font-size: 1em;
+    cursor: pointer;
+    color: #333;
+  }
+  .post-count-item:hover {
+    text-decoration: underline;
+  }
+
+  /* Post Solution のみ左詰めにする */
+  .post-solution-item {
+    text-align: right;
+    width: 70%; /* 必要に応じて幅を調整してください */
+  }
+
+  /* 興味ある分野を1行ずつ表示 */
+  .user-interests-block {
+    text-align: left;
+    margin-bottom: 30px;
+  }
+  .user-interests-block h4 {
+    margin: 0 0 8px 0;
+    font-size: 1em;
+    font-weight: normal;
+    color: #555;
+  }
+  .user-interests-block .interest-item {
+    margin-bottom: 5px;
+    background: #f9f9f9;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    display: inline-block;
+    padding: 2px 6px;
+    font-size: 0.9em;
+  }
+</style>
+
+<div class="my-user-info-container">
+  
+  <!-- 編集アイコン (3点リーダーなど) -->
+  <div class="my-user-edit-icon" id="myUserEditIcon">
+    <i class="fa-solid fa-ellipsis"></i>
+  </div>
+  <!-- 編集アイコンのポップオーバー -->
+  <div class="my-user-edit-popup" id="myUserEditPopup">
+    <a href="{{ url_for('user_profile') }}">ユーザー情報</a>
+    <a href="{{ url_for('logout') }}">ログアウト</a>
+  </div>
+
+  <!-- トップ画像を中央に配置 -->
+  <div class="top-photo-center">
+    <img
+      class="user-top-photo"
+      src="{% if current_user.topphoto %}
+            {{ url_for('static', filename='uploads/' ~ current_user.topphoto) }}
+          {% else %}
+            {{ url_for('static', filename='images/default_user.png') }}
+          {% endif %}"
+      alt="トップ画像"
+    >
+  </div>
+
+  <!-- ユーザー名＋followerアイコンと相互フォロー数 -->
+  <div class="user-row">
+    <div class="user-name-left">
+      {{ current_user.name|default(current_user.username) }}
+    </div>
+    <div>
+      <!-- 自分自身の場合は follower アイコン（ボタンは表示するが無効化） -->
+      <button id="followButton" class="follow-btn follower" disabled>
+        follower
+      </button>
+      <!-- 相互フォロー数（クリックでモーダル表示） -->
+      <span id="mutualCount" class="mutual-count" onclick="showMutualFollowers({{ current_user.id }})">0</span>
+    </div>
+  </div>
+
+  <!-- Post EMA / Post Solution を横並びに表示 -->
+  <div class="post-count-row">
+    <div class="post-count-item" onclick="location.href='{{ url_for('user_past') }}';">
+      Post EMA {{ ema_count }}
+    </div>
+    <div class="post-count-item post-solution-item">
+      Post Solution {{ solution_count }}
+    </div>
+  </div>
+
+  <!-- 興味ある分野 (1行ずつ縦に並べる) -->
+  <div class="user-interests-block">
+    <h4>興味ある分野</h4>
+    {% if user_interests %}
+      {% for cat in user_interests %}
+        <div class="interest-item">{{ cat.name }}</div><br>
+      {% endfor %}
+    {% else %}
+      <div style="color:#999;">まだ選択されていません。</div>
+    {% endif %}
+  </div>
+
+</div>
+
+<!-- 相互フォロー一覧モーダル -->
+<div id="mutualModal" class="modal" onclick="hideMutualModal()">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <div id="mutualModalTitle" class="modal-title">Followed 0</div>
+    <div id="mutualList"></div>
+    <button style="margin-top:10px;" onclick="hideMutualModal()">閉じる</button>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const editIcon = document.getElementById('myUserEditIcon');
+  const editPopup = document.getElementById('myUserEditPopup');
+
+  if (editIcon && editPopup) {
+    editIcon.addEventListener('click', (e) => {
+      e.stopPropagation();
+      editPopup.classList.toggle('show');
+    });
+    document.addEventListener('click', () => {
+      editPopup.classList.remove('show');
+    });
+    editPopup.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+  }
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+  refreshMutualCount({{ current_user.id }});
+});
+
+function refreshMutualCount(userId) {
+  const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+  fetch('/get_mutual_followers/' + userId, {
+    method: 'GET',
+    headers: { 'X-CSRFToken': csrfToken }
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      document.getElementById('mutualCount').textContent = data.mutual_followers.length;
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+  });
+}
+
+function showMutualFollowers(userId) {
+  const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+  fetch('/get_mutual_followers/' + userId, {
+    method: 'GET',
+    headers: { 'X-CSRFToken': csrfToken }
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      const listDiv = document.getElementById('mutualList');
+      const titleDiv = document.getElementById('mutualModalTitle');
+      titleDiv.textContent = 'Followed ' + data.mutual_followers.length;
+      listDiv.innerHTML = '';
+      data.mutual_followers.forEach(u => {
+        const item = document.createElement('div');
+        item.className = 'followed-list-item';
+        const leftDiv = document.createElement('div');
+        leftDiv.className = 'followed-list-left';
+        const img = document.createElement('img');
+        img.className = 'followed-list-img';
+        img.src = u.topphoto_url;
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'followed-list-username';
+        nameSpan.textContent = u.username;
+        leftDiv.appendChild(img);
+        leftDiv.appendChild(nameSpan);
+        // 右側のボタンは表示のみ
+        const followedBtn = document.createElement('button');
+        followedBtn.className = 'followed-btn';
+        followedBtn.textContent = 'followed';
+        item.appendChild(leftDiv);
+        item.appendChild(followedBtn);
+        listDiv.appendChild(item);
+      });
+      document.getElementById('mutualModal').style.display = 'flex';
+    } else {
+      alert(data.message);
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    alert("相互フォロー情報の取得中にエラーが発生しました。");
+  });
+}
+
+function hideMutualModal() {
+  document.getElementById('mutualModal').style.display = 'none';
+}
+</script>
+{% endblock %}

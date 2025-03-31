@@ -1,0 +1,397 @@
+{% extends "base.html" %}
+{% block title %}{{ idea.title }} - Reply to {{ parent_comment.user.username }}{% endblock %}
+{% block content %}
+
+<!-- ポスト全文表示（従来のidea-detail-container） -->
+<div class="idea-detail-container">
+  <!-- ▼ ここで「トップ画像＋ユーザー名」を横並び表示 -->
+  <div class="idea-author-info">
+    <div class="idea-author-photo">
+      <a href="{{ url_for('user_info', user_id=idea.author_id) }}">
+        {% if idea.author and idea.author.topphoto %}
+          <img 
+            src="{{ url_for('static', filename='uploads/' ~ idea.author.topphoto) }}"
+            alt="Profile Photo"
+            class="photo-thumb"
+          >
+        {% else %}
+          <img 
+            src="{{ url_for('static', filename='images/default_user.png') }}"
+            alt="Default Photo"
+            class="photo-thumb"
+          >
+        {% endif %}
+      </a>
+    </div>
+    <div class="idea-author-name">
+      {% if idea.author %}
+        {{ idea.author.username }}
+      {% else %}
+        不明
+      {% endif %}
+    </div>
+  </div>
+  
+  <!-- タイトル -->
+  <h2 class="idea-title">{{ idea.title }}</h2>
+  
+  <div class="idea-description" style="white-space: normal;">
+    {% set lines = idea.description.replace('\r\n', '\n').split('\n') %}
+    {% for line in lines %}
+      {% set clean_line = line|replace('\u3000', '')|replace('\u00a0', '')|trim %}
+      {% if clean_line %}
+        {{ clean_line }}{% if not loop.last %}<br>{% endif %}
+      {% endif %}
+    {% endfor %}
+  </div>
+  <div class="idea-meta">
+    <p class="idea-category">
+      分野: {{ idea.categories|map(attribute='name')|join(', ') }}
+    </p>
+    <div class="idea-date-heart" style="display: flex; align-items: center;">
+      <span class="idea-date">
+        <span class="local-date" data-utc="{{ idea.created_at.isoformat() }}Z"></span>
+      </span>
+      <div style="margin-left: auto; display: flex; align-items: center; gap: 10px;">
+        <span class="heart-count" id="heart-count-{{ idea.id }}">
+          {{ idea.flowers|length }}
+        </span>
+        <span class="heart-icon" onclick="toggleHeart(event, '{{ idea.id }}')" id="heart-icon-{{ idea.id }}">
+          {% if current_user.is_authenticated and current_user in idea.flowers %}
+            <i class="fa-solid fa-heart" style="color: #ff40ff;"></i>
+          {% else %}
+            <i class="fa-regular fa-heart"></i>
+          {% endif %}
+        </span>
+        <span class="comment-icon" onclick="openCommentModal(event)" style="cursor: pointer;">
+          <i class="fa-regular fa-comment"></i>
+        </span>
+        <span class="comment-count" id="comment-count-{{ idea.id }}">
+          {{ idea.comments.count() }}
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr>
+
+<!-- 親コメント表示（返信対象） -->
+<h3>返信を投稿する親コメント</h3>
+<div class="comment-card">
+  <div class="comment-header">
+    <span class="comment-icon">
+      <i class="fa-solid fa-arrow-turn-up rotated-icon"></i>
+    </span>
+    <a href="{{ url_for('user_info', user_id=parent_comment.user.id) }}">
+      <img
+        class="comment-author-photo"
+        src="{% if parent_comment.user and parent_comment.user.topphoto %}
+              {{ url_for('static', filename='uploads/' ~ parent_comment.user.topphoto) }}
+            {% else %}
+              {{ url_for('static', filename='images/default_user.png') }}
+            {% endif %}"
+        alt="User Photo"
+      >
+    </a>
+    <span class="comment-username">
+      {% if parent_comment.user %}
+        {{ parent_comment.user.username }}
+      {% else %}
+        匿名
+      {% endif %}
+    </span>
+  </div>
+  <div class="comment-text" style="white-space: normal;">
+    {% set lines = parent_comment.content.replace('\r\n', '\n').split('\n') %}
+    {% for line in lines if line|trim != '' %}
+      {{ line|replace('\u3000', '')|replace('\u00a0', '')|trim }}{% if not loop.last %}<br>{% endif %}
+    {% endfor %}
+  </div>
+  <div class="comment-footer">
+    <span class="comment-date">
+      {% if parent_comment.created_at %}
+        <span class="local-date" data-utc="{{ parent_comment.created_at.isoformat() }}Z"></span>
+      {% else %}
+        (日付なし)
+      {% endif %}
+    </span>
+    <span class="heart-count" id="comment-heart-count-{{ parent_comment.id }}">
+      {{ parent_comment.flowers.count() }}
+    </span>
+    {% if current_user.id != parent_comment.user_id %}
+      <span class="heart-icon" onclick="toggleCommentHeart(event, '{{ parent_comment.id }}')" id="comment-heart-icon-{{ parent_comment.id }}">
+        {% if current_user.is_authenticated and current_user in parent_comment.flowers %}
+          <i class="fa-solid fa-heart" style="color: #ff40ff;"></i>
+        {% else %}
+          <i class="fa-regular fa-heart"></i>
+        {% endif %}
+      </span>
+    {% else %}
+      <span class="heart-icon disabled">
+        <i class="fa-regular fa-heart"></i>
+      </span>
+    {% endif %}
+    <!-- この親コメントの返信用アイコン（ここではモーダルで返信投稿） -->
+    <span class="comment-reply-icon" onclick="openReplyModal(event, '{{ parent_comment.id }}', '{{ parent_comment.user.username }}')" style="cursor: pointer;">
+      <i class="fa-regular fa-comment"></i>
+    </span>
+    <span class="reply-count" id="reply-count-{{ parent_comment.id }}">
+      {{ parent_comment.replies.count() }}
+    </span>
+  </div>
+</div>
+
+<!-- 返信一覧表示用のコンテナ（親コメントの下） -->
+<div class="reply-container" id="reply-container-{{ parent_comment.id }}">
+  {% for reply in parent_comment.replies|sort(attribute='created_at') %}
+    <div class="reply-card">
+      <div class="reply-header">
+        <i class="fa-solid fa-arrow-turn-up rotated-icon"></i>
+        <a href="{{ url_for('user_info', user_id=parent_comment.user.id) }}">
+          {% if parent_comment.user.topphoto %}
+            <img src="{{ url_for('static', filename='uploads/' ~ parent_comment.user.topphoto) }}"
+                 alt="Profile Photo"
+                 class="photo-thumb">
+          {% else %}
+            <img src="{{ url_for('static', filename='images/default_user.png') }}"
+                 alt="Default Photo"
+                 class="photo-thumb">
+          {% endif %}
+        </a>
+        <!-- 親コメントの投稿者（対象）を青文字で表示 -->
+        <span class="reply-target" style="color: #33ccff;">{{ parent_comment.user.username }}</span>
+        &rarr;
+        <!-- 返信送信者 -->
+        <span class="reply-sender">
+          {% if reply.user %}
+            <a href="{{ url_for('user_info', user_id=reply.user.id) }}">
+              {% if reply.user.topphoto %}
+                <img src="{{ url_for('static', filename='uploads/' ~ reply.user.topphoto) }}"
+                    alt="Profile Photo"
+                    class="photo-thumb">
+              {% else %}
+                <img src="{{ url_for('static', filename='images/default_user.png') }}"
+                    alt="Default Photo"
+                    class="photo-thumb">
+              {% endif %}
+            </a>
+            {{ reply.user.username }}
+          {% else %}
+            匿名
+          {% endif %}
+        </span>
+      </div>
+      <div class="reply-text" style="white-space: normal; text-align: left;">
+        {% set rlines = reply.content.replace('\r\n', '\n').split('\n') %}
+        {% for rline in rlines if rline|trim != '' %}
+          {{ rline|replace('\u3000', '')|replace('\u00a0', '')|trim }}{% if not loop.last %}<br>{% endif %}
+        {% endfor %}
+      </div>
+      <div class="reply-footer" style="display: flex; align-items: center; width: 100%;">
+        <!-- 日付部分（左詰め） -->
+        <span class="reply-date" style="text-align: left;">
+          <span class="local-date" data-utc="{{ reply.created_at.isoformat() }}Z"></span>
+        </span>
+        <!-- 右詰め部分：ハートのカウントとアイコン -->
+        <span class="reply-heart-info" style="margin-left: auto; display: flex; align-items: center; gap: 5px;">
+          <span class="heart-count" id="reply-heart-count-{{ reply.id }}">
+            {{ reply.flowers.count() }}
+          </span>
+          {% if current_user.is_authenticated and current_user.id != reply.user_id %}
+            <span class="heart-icon" onclick="toggleReplyHeart(event, '{{ reply.id }}')" id="reply-heart-icon-{{ reply.id }}">
+              {% if current_user in reply.flowers %}
+                <i class="fa-solid fa-heart" style="color: #ff40ff;"></i>
+              {% else %}
+                <i class="fa-regular fa-heart"></i>
+              {% endif %}
+            </span>
+          {% else %}
+            <span class="heart-icon">
+              <i class="fa-regular fa-heart"></i>
+            </span>
+          {% endif %}
+
+          <!-- ★ ここに「コメントアイコン」を追加してサブ返信が可能にする -->
+          <span class="reply-comment-icon"
+                onclick="openReplyModal(event, '{{ reply.id }}', '{{ reply.user.username }}')"
+                style="cursor: pointer;">
+            <i class="fa-regular fa-comment"></i>
+          </span>
+
+          <!-- 返信数（将来的にサブ返信を格納するなら、reply.replies.count()などがあれば表示） -->
+          <span class="reply-count" id="reply-count-{{ reply.id }}">
+            <!-- 今の段階でサブ返信を管理するなら、新たなリレーションを設ける必要あり -->
+            0
+          </span>
+        </span>
+      </div>
+    </div>
+  {% endfor %}
+</div>
+
+<!-- 返信投稿用のモーダルウィンドウ -->
+<div id="replyModal" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="closeReplyModal()">&times;</span>
+    <h3 id="replyModalHeader">返信を投稿</h3>
+    <form id="modalReplyForm" method="post">
+      {{ form.hidden_tag() }}
+      {{ form.content(cols=40, rows=5) }}<br>
+      {{ form.submit() }}
+    </form>
+  </div>
+</div>
+
+<!-- 既存のコメント投稿用モーダル（ポストへのコメント）はそのまま -->
+<div id="commentModal" class="modal" style="display: none;">
+  <div class="modal-content">
+    <span class="close" onclick="closeCommentModal()">&times;</span>
+    <h3 id="commentModalHeader">コメントを投稿</h3>
+    <form id="modalCommentForm" method="post">
+      {{ form.hidden_tag() }}
+      {{ form.content(cols=40, rows=5) }}<br>
+      {{ form.submit() }}
+    </form>
+  </div>
+</div>
+
+<script>
+  // 返信用モーダルを開く。対象の親コメントIDと返信対象のユーザー名を渡す。
+  function openReplyModal(event, commentId, targetUserName) {
+    event.stopPropagation();
+    document.getElementById('replyModalHeader').textContent = "返信を投稿 - " + targetUserName + "への返信";
+    document.getElementById('modalReplyForm').setAttribute('data-comment-id', commentId);
+    var modal = document.getElementById('replyModal');
+    modal.style.display = "block";
+    modal.scrollIntoView({ behavior: "smooth" });
+  }
+  
+  function closeReplyModal() {
+    document.getElementById('replyModal').style.display = "none";
+  }
+  
+  // 既存のコメント投稿モーダル（ポストへのコメント用）の開閉
+  function openCommentModal(event) {
+    event.stopPropagation();
+    var modal = document.getElementById('commentModal');
+    modal.style.display = "block";
+    modal.scrollIntoView({ behavior: "smooth" });
+  }
+  
+  function closeCommentModal() {
+    document.getElementById('commentModal').style.display = "none";
+  }
+  
+  window.onclick = function(event) {
+    var replyModal = document.getElementById('replyModal');
+    var commentModal = document.getElementById('commentModal');
+    if (event.target == replyModal) {
+      replyModal.style.display = "none";
+    }
+    if (event.target == commentModal) {
+      commentModal.style.display = "none";
+    }
+  };
+
+  // 既存のハートトグル関数（ポスト・コメント用）
+  function toggleHeart(event, ideaId) {
+    event.stopPropagation();
+    const csrfToken = document.querySelector('meta[name="csrf-token"]') ?
+      document.querySelector('meta[name="csrf-token"]').getAttribute('content') : '';
+    fetch('/toggle_flower/' + ideaId, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken
+      },
+      body: JSON.stringify({})
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        const countSpan = document.getElementById('heart-count-' + ideaId);
+        if (countSpan) {
+          countSpan.textContent = data.flower_count ;
+          if (data.action === 'added') {
+            countSpan.classList.add("active");
+          } else if (data.action === 'removed') {
+            countSpan.classList.remove("active");
+          }
+        }
+        const iconSpan = document.getElementById('heart-icon-' + ideaId);
+        if (iconSpan) {
+          const icon = iconSpan.querySelector('i');
+          if (data.action === 'added') {
+            icon.classList.remove("fa-regular");
+            icon.classList.add("fa-solid");
+            icon.style.color = "#ff40ff";
+          } else if (data.action === 'removed') {
+            icon.classList.remove("fa-solid");
+            icon.classList.add("fa-regular");
+            icon.style.color = "";
+          }
+        }
+      } else {
+        alert(data.message);
+      }
+    })
+    .catch(error => console.error('Error:', error));
+  }
+
+  function toggleReplyHeart(event, replyId) {
+    event.stopPropagation();
+    const csrfToken = document.querySelector('meta[name="csrf-token"]') ?
+        document.querySelector('meta[name="csrf-token"]').getAttribute('content') : '';
+    fetch('/toggle_reply_flower/' + replyId, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken
+      },
+      body: JSON.stringify({})
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        // 更新：返信のハートカウント
+        const countSpan = document.getElementById('reply-heart-count-' + replyId);
+        if (countSpan) {
+          countSpan.textContent = data.flower_count ;
+          if (data.action === 'added') {
+            countSpan.classList.add("active");
+          } else if (data.action === 'removed') {
+            countSpan.classList.remove("active");
+          }
+        }
+        // 更新：返信のハートアイコン
+        const iconSpan = document.getElementById('reply-heart-icon-' + replyId);
+        if (iconSpan) {
+          const icon = iconSpan.querySelector('i');
+          if (data.action === 'added') {
+            icon.classList.remove("fa-regular");
+            icon.classList.add("fa-solid");
+            icon.style.color = "#ff40ff";
+          } else if (data.action === 'removed') {
+            icon.classList.remove("fa-solid");
+            icon.classList.add("fa-regular");
+            icon.style.color = "";
+          }
+        }
+      } else {
+        alert(data.message);
+      }
+    })
+    .catch(error => console.error('Error:', error));
+  }
+
+  var socket = io();
+  socket.on('update_flower_count', function(data) {
+    var ideaId = data.idea_id;
+    var countSpan = document.getElementById('heart-count-' + ideaId);
+    if (countSpan) {
+      countSpan.textContent = data.flower_count ;
+    }
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Recent Ideas{% endblock %}
+
+{% block content %}
+<style>
+  /* recent_pageではbottom-navを非表示に */
+  .bottom-nav {
+    display: none;
+  }
+  /* 必要に応じてrecent一覧のコンテナ背景や余白を調整 */
+  .recent-container {
+    margin: 0px auto;
+    width: 90%;
+    max-width: 1000px;
+    background: #fff;
+    padding: 20px;
+    border-radius: 0px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  }
+
+  .idea-card-categories {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;  /* カテゴリーが多い場合に折り返す */
+    margin-bottom: 10px; /* 下との余白 */
+  }
+
+  .category-item {
+    background-color: #eee;
+    padding: 3px 8px;
+    border-radius: 5px;
+    color: #333;
+    font-size: 0.85em;
+    white-space: nowrap; /* 1つのカテゴリー名を折り返さない */
+  }
+</style>
+
+<h2 class="recent-header">recent</h2>
+<div class="recent-container">
+  {% if recent_ideas and recent_ideas|length > 0 %}
+    {% for idea in recent_ideas %}
+      <div class="recent-card" onclick="location.href='{{ url_for('idea_detail', idea_id=idea.id) }}';">
+        <!-- タイトル -->
+        <div class="recent-card-title">
+          {{ idea.title }}
+        </div>
+        <!-- 投稿者・概要 -->
+        <div class="recent-card-info">
+          {{ idea.author.username }}<br>
+          {{ idea.description[:100] }}...
+        </div>
+        <div class="idea-card-categories">
+          {% for cat in idea.categories %}
+            <div class="category-item">{{ cat.name }}</div>
+          {% endfor %}
+        </div>
+        <!-- フッター：日付とアイコン群 -->
+        <div class="recent-card-footer">
+          <div class="footer-date">
+            <span class="local-date" data-utc="{{ idea.created_at.isoformat() }}Z"></span>
+          </div>
+          <div class="footer-icons">
+            <span class="heart-count" id="heart-count-{{ idea.id }}">
+              {{ idea.flowers|length }}
+            </span>
+            <span class="heart-icon" onclick="toggleHeart(event, '{{ idea.id }}')" id="heart-icon-{{ idea.id }}">
+              {% if current_user.is_authenticated and current_user in idea.flowers %}
+                <i class="fa-solid fa-heart" style="color: #ff40ff;"></i>
+              {% else %}
+                <i class="fa-regular fa-heart"></i>
+              {% endif %}
+            </span>
+            <span class="comment-count" id="comment-count-{{ idea.id }}">
+              {{ idea.comments.count() }}
+            </span>
+            <i class="fa-regular fa-comment" onclick="location.href='{{ url_for('idea_detail', idea_id=idea.id) }}';"></i>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <p>直近1週間以内に投稿されたアイデアはありません。</p>
+  {% endif %}
+</div>
+{% endblock %}

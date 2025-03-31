@@ -1,0 +1,364 @@
+{% extends "base.html" %}
+{% block title %}E-notification{% endblock %}
+{% block content %}
+<style>
+.notification-cards-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0px;
+  width: 100%;
+  max-width: none;
+  margin: 20px auto;
+}
+
+/* 通知カード全体をクリック可能にする場合は <a> で囲む */
+.notification-card {
+  display: flex;
+  align-items: center;
+  gap: 0px;
+  border: 1px solid #ccc;
+  border-radius: 0px;
+  padding: 10px;
+  background-color: #fff;
+  text-decoration: none;
+  color: #333;
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+.notification-card:hover {
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  transform: translateY(-2px);
+}
+
+/* アイコンを左詰めにしてサイズを統一 */
+.notification-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* デフォルトの色は継承。特定クラスで上書き */
+}
+
+/* アイコン内部のフォントサイズを指定、色は継承させる */
+.notification-icon i {
+  font-size: 18px;
+  color: inherit; /* ここがポイント: 親の color を継承 */
+}
+
+/* follow+ 用の背景・色 */
+.follow-plus-icon {
+  background-color: #333; /* 鮮やかな緑 */
+  color: #00FF00;            /* テキスト色を明るいグレー系に */
+  padding: 2px;              /* アイコン背景の円内に余白 */
+}
+
+/* ハートアイコン用 (背景+色) */
+.heart-icon {
+  background-color: #ffe6f7; /* 薄ピンク背景(例) */
+  color: #ff40ff;            /* テキスト色(アイコン色) */
+}
+
+/* コメントアイコン用 */
+.comment-icon {
+  background-color: #e8e4ea; /* 薄グレー背景(例) */
+  color: #333;               /* テキスト色 */
+}
+
+.noti-icon{
+  background-color: #e8e4ea; /* 薄グレー背景(例) */
+  color: #666;               /* テキスト色 */
+}
+
+/* その他アイコン用 */
+.other-icon {
+  background-color: #f0f0f0;
+  color: #333;
+}
+
+/* トップ画像（ユーザー写真） */
+.user-top-photo {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid #ccc;
+}
+
+/* テキスト部分 */
+.notification-text {
+  margin-left: 8px;
+  flex: 1;
+  white-space: pre-line;
+}
+
+/* 承認・拒否ボタン群 */
+.invite-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 5px;
+}
+.invite-actions button {
+  padding: 5px 10px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9em;
+}
+.approve-btn {
+  background-color: #008000; /* 鮮やかな緑 */
+  color: #fff;
+}
+.reject-btn {
+  background-color: #ccc;
+  color: #333;
+}
+</style>
+
+<h2>E-notification</h2>
+
+<div class="notification-cards-container">
+  {% if notifications and notifications|length > 0 %}
+    {% for notif in notifications %}
+      {% set is_comment_notif = (notif.notification_type in ['comment_on_post', 'comment_reply']) %}
+      {% set is_heart_notif = (notif.notification_type in ['heart_on_post', 'heart_on_comment']) %}
+
+      {# ---------------------------------------------------------------- #}
+      {# 1) フォローリクエスト通知 #}
+      {# ---------------------------------------------------------------- #}
+      {% if notif.notification_type == 'follow_request' %}
+        <!-- クリックでユーザーインフォメーションへ遷移 -->
+        <a href="{{ url_for('user_info', user_id=notif.actor.id) }}" class="notification-card">
+          <!-- アイコン(左詰め) -->
+          <div class="notification-icon follow-plus-icon">
+            <i class="fa-solid fa-user-plus"></i>
+          </div>
+          <!-- ユーザー写真 (アイコンの右側) -->
+          {% if notif.actor and notif.actor.topphoto %}
+            <img src="{{ url_for('static', filename='uploads/' ~ notif.actor.topphoto) }}"
+                 class="user-top-photo"
+                 alt="User Photo">
+          {% else %}
+            <img src="{{ url_for('static', filename='images/default_user.png') }}"
+                 class="user-top-photo"
+                 alt="Default Photo">
+          {% endif %}
+          <!-- テキスト -->
+          <div class="notification-text">
+            {% if notif.actor %}
+              {{ notif.actor.username }} からフォローリクエストがあります
+            {% else %}
+              不明なユーザー からフォローリクエストがあります
+            {% endif %}
+          </div>
+        </a>
+
+      {# ---------------------------------------------------------------- #}
+      {# 2) コメント通知 #}
+      {# ---------------------------------------------------------------- #}
+      {% elif is_comment_notif %}
+        {# 通知先URLを計算 #}
+        {% if notif.notification_type == 'comment_on_post' %}
+          {% set target_url = url_for('idea_detail', idea_id=notif.idea_id) %}
+        {% elif notif.notification_type == 'comment_reply' %}
+          {% if notif.comment_id %}
+            {% set target_url = url_for('view_parent_comment', idea_id=notif.idea_id, comment_id=notif.comment_id) %}
+          {% else %}
+            {% set target_url = url_for('idea_detail', idea_id=notif.idea_id) %}
+          {% endif %}
+        {% endif %}
+        <a href="{{ target_url }}" class="notification-card">
+          <!-- アイコン(左) -->
+          <div class="notification-icon comment-icon">
+            <i class="fa-regular fa-comment"></i>
+          </div>
+          <!-- ユーザー写真 -->
+          {% if notif.actor and notif.actor.topphoto %}
+            <img src="{{ url_for('static', filename='uploads/' ~ notif.actor.topphoto) }}"
+                 class="user-top-photo"
+                 alt="User Photo">
+          {% else %}
+            <img src="{{ url_for('static', filename='images/default_user.png') }}"
+                 class="user-top-photo"
+                 alt="Default Photo">
+          {% endif %}
+          <!-- テキスト -->
+          <div class="notification-text">
+            {% if notif.actor %}
+              {{ notif.actor.username }} からコメントが送信されました<br>
+              {{ notif.content|truncate(80) }}
+            {% else %}
+              誰か からコメントが送信されました<br>
+              {{ notif.content|truncate(80) }}
+            {% endif %}
+          </div>
+        </a>
+
+      {# ---------------------------------------------------------------- #}
+      {# 3) ハート通知 #}
+      {# ---------------------------------------------------------------- #}
+      {% elif is_heart_notif %}
+        {% if notif.notification_type == 'heart_on_post' %}
+          {% set target_url = url_for('idea_detail', idea_id=notif.idea_id) %}
+        {% elif notif.notification_type == 'heart_on_comment' %}
+          {% if notif.comment_id %}
+            {% set target_url = url_for('view_parent_comment', idea_id=notif.idea_id, comment_id=notif.comment_id) %}
+          {% else %}
+            {% set target_url = url_for('idea_detail', idea_id=notif.idea_id) %}
+          {% endif %}
+        {% endif %}
+        <a href="{{ target_url }}" class="notification-card">
+          <!-- アイコン(左) -->
+          <div class="notification-icon heart-icon">
+            <i class="fa-solid fa-heart"></i>
+          </div>
+          <!-- ユーザー写真 -->
+          {% if notif.actor and notif.actor.topphoto %}
+            <img src="{{ url_for('static', filename='uploads/' ~ notif.actor.topphoto) }}"
+                 class="user-top-photo"
+                 alt="User Photo">
+          {% else %}
+            <img src="{{ url_for('static', filename='images/default_user.png') }}"
+                 class="user-top-photo"
+                 alt="Default Photo">
+          {% endif %}
+          <!-- テキスト -->
+          <div class="notification-text">
+            {% if notif.actor %}
+              {{ notif.actor.username }} からハートが送信されました
+            {% else %}
+              誰か からハートが送信されました
+            {% endif %}
+          </div>
+        </a>
+      
+      {# ------------------------------ #}
+      {# グループ招待 (group_invite) の場合 #}
+      {% elif notif.notification_type == 'group_invite' %}
+        <a href="{{ url_for('group') }}" class="notification-card group-invite" data-notif-id="{{ notif.id }}">
+          <div class="notification-icon">
+            <i class="fa-solid fa-bell"></i>
+          </div>
+          {% if notif.actor and notif.actor.topphoto %}
+            <img src="{{ url_for('static', filename='uploads/' ~ notif.actor.topphoto) }}"
+                alt="User Photo"
+                class="user-top-photo">
+          {% else %}
+            <img src="{{ url_for('static', filename='images/default_user.png') }}"
+                alt="Default Photo"
+                class="user-top-photo">
+          {% endif %}
+          <div class="notification-text">
+            {% if notif.actor %}
+              {{ notif.actor.username }}<br>
+            {% else %}
+              不明なユーザー<br>
+            {% endif %}
+            <br>
+            【{{ notif.idea.title }}】から招待されました。
+            <div class="invite-actions">
+              <button class="approve-btn" data-notif-id="{{ notif.id }}">承認</button>
+              <button class="reject-btn" data-notif-id="{{ notif.id }}">拒否</button>
+            </div>
+          </div>
+        </a>
+  
+      {# ---------------------------------------------------------------- #}
+      {# 4) その他の通知 #}
+      {# ---------------------------------------------------------------- #}
+      {% else %}
+        <div class="notification-card" style="cursor: default;">
+          <!-- アイコン(左) - 例: other-icon -->
+          <div class="notification-icon other-icon">
+            <i class="fa-solid fa-bell"></i>
+          </div>
+          <!-- ユーザー写真 -->
+          {% if notif.actor and notif.actor.topphoto %}
+            <img src="{{ url_for('static', filename='uploads/' ~ notif.actor.topphoto) }}"
+                 class="user-top-photo"
+                 alt="User Photo">
+          {% else %}
+            <img src="{{ url_for('static', filename='images/default_user.png') }}"
+                 class="user-top-photo"
+                 alt="Default Photo">
+          {% endif %}
+          <!-- テキスト -->
+          <div class="notification-text">
+            {% if notif.actor %}
+              {{ notif.actor.username }} {{ notif.content }}
+            {% else %}
+              不明なユーザー {{ notif.content }}
+            {% endif %}
+          </div>
+        </div>
+      {% endif %}
+    {% endfor %}
+  {% else %}
+    <p>通知はありません</p>
+  {% endif %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  // CSRFトークンを送る必要がある場合はメタタグから取得
+  const csrfToken = document.querySelector('meta[name="csrf-token"]') ? 
+                    document.querySelector('meta[name="csrf-token"]').getAttribute('content') : '';
+
+  // 承認ボタン
+  document.querySelectorAll('.approve-btn').forEach(function(btn){
+    btn.addEventListener('click', function(e){
+      // リンク(<a>)へのクリックが伝播しないようにする
+      e.stopPropagation();
+      e.preventDefault();
+      
+      const notifId = this.getAttribute('data-notif-id');
+      fetch(`/group_invite_response/${notifId}?action=approve`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrfToken }
+      })
+      .then(response => response.json())
+      .then(data => {
+        if(data.success) {
+          // E-group 画面へ移動
+          window.location.href = "{{ url_for('group') }}";
+        } else {
+          alert(data.message);
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        alert("承認処理中にエラーが発生しました。");
+      });
+    });
+  });
+  
+  // 拒否ボタン
+  document.querySelectorAll('.reject-btn').forEach(function(btn){
+    btn.addEventListener('click', function(e){
+      e.stopPropagation();
+      e.preventDefault();
+
+      const notifId = this.getAttribute('data-notif-id');
+      fetch(`/group_invite_response/${notifId}?action=reject`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrfToken }
+      })
+      .then(response => response.json())
+      .then(data => {
+        if(data.success) {
+          alert("拒否しました。");
+          // 通知は残す
+        } else {
+          alert(data.message);
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        alert("拒否処理中にエラーが発生しました。");
+      });
+    });
+  });
+});
+</script>
+{% endblock %}

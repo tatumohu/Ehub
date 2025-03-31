@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}ログイン{% endblock %}
+{% block content %}
+<div class="auth-form-container">
+  <h2>ログイン</h2>
+  <form method="POST" action="{{ url_for('login') }}">
+    {{ form.hidden_tag() }}
+
+    <p>
+      {{ form.username.label }}<br>
+      {{ form.username(size=32) }}
+    </p>
+    <p>
+      {{ form.password.label }}<br>
+      {{ form.password(size=32) }}
+    </p>
+    <p>{{ form.submit() }}</p>
+  </form>
+</div>
+<style>
+/* ログインフォームを中央揃えにする */
+.auth-form-container {
+  width: 100%;
+  max-width: 400px; /* お好みで調整 */
+  margin: 0 auto;
+  text-align: center;
+  padding: 20px;
+  box-sizing: border-box;
+}
+</style>
+{% endblock %}

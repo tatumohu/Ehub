@@ -1,0 +1,23 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Flask",
+            "type": "python",  // 'debugpy' に変更していた場合、 'python' に戻してみてください
+            "request": "launch",
+            "module": "flask",
+            "env": {
+                "FLASK_APP": "app.py",
+                "FLASK_ENV": "development"
+            },
+            "args": [
+                "run",
+                "--no-debugger",
+                "--no-reload",
+                "--port=5001"  // 必要に応じてポート番号を変更
+            ],
+            "jinja": true,
+            "justMyCode": true
+        }
+    ]
+}

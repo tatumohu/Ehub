@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}新規登録{% endblock %}
+{% block content %}
+<div class="auth-form-container">
+  <h2>新規登録</h2>
+  <form method="POST" action="{{ url_for('register') }}">
+    {{ form.hidden_tag() }}
+
+    <p>
+      {{ form.username.label }}<br>
+      {{ form.username(size=32) }}
+    </p>
+    <p>
+      {{ form.birthdate.label }}<br>
+      {{ form.birthdate() }}
+    </p>
+    <p>
+      {{ form.email.label }}<br>
+      {{ form.email(size=40) }}
+    </p>
+    <p>
+      {{ form.password.label }}<br>
+      {{ form.password(size=32) }}
+    </p>
+    <p>
+      {{ form.password2.label }}<br>
+      {{ form.password2(size=32) }}
+    </p>
+
+    <p>{{ form.submit() }}</p>
+  </form>
+</div>
+<style>
+/* 新規登録フォームを中央揃えにする */
+.auth-form-container {
+  width: 100%;
+  max-width: 400px; /* お好みで調整 */
+  margin: 0 auto;
+  text-align: center;
+  padding: 20px;
+  box-sizing: border-box;
+}
+</style>
+{% endblock %}

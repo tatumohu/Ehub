@@ -1,0 +1,434 @@
+{% extends "base.html" %}
+{% block title %}ユーザー情報{% endblock %}
+{% block content %}
+
+<style>
+/* ====== ページ全体のコンテナ ====== */
+.profile-edit-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  background: #fff;
+  color: #000;
+}
+
+/* 見出し */
+.profile-header-title {
+  font-size: 1.5em;
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+/* 左右レイアウト：左側はプロフィール画像、右側はフォーム */
+.profile-layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 40px;
+}
+
+/* 左側：円形プロフィール画像 */
+.profile-photo-side {
+  flex: 0 0 auto;
+}
+.profile-photo-container {
+  position: relative;
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  overflow: hidden;
+  cursor: pointer;
+  border: 2px solid #ccc;
+}
+.profile-photo-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: 50%;
+}
+/* ホバー時「編集」オーバーレイ */
+.edit-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0,0,0,0.4);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  border-radius: 50%;
+}
+.profile-photo-container:hover .edit-overlay {
+  opacity: 1;
+}
+.edit-overlay span {
+  font-weight: bold;
+}
+
+/* ====== プロフィール編集用モーダル（Cropper.js） ====== */
+.modal-backdrop {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(0,0,0,0.5);
+  z-index: 2000;
+  align-items: center;
+  justify-content: center;
+}
+.modal-backdrop.show {
+  display: flex;
+}
+.modal-content {
+  background: #fff;
+  width: 80%;
+  max-width: 600px;
+  border-radius: 8px;
+  padding: 20px;
+  position: relative;
+  box-sizing: border-box;
+}
+.modal-close-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 1.2em;
+  cursor: pointer;
+  color: #333;
+}
+
+/* Cropper 表示領域 */
+#cropper-container {
+  width: 100%;
+  max-height: 400px;
+  overflow: hidden;
+  margin-bottom: 15px;
+  background: #eee;
+}
+
+/* モーダル内コントロール */
+.cropper-controls {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 10px;
+}
+.cropper-controls button {
+  padding: 8px 12px;
+  font-size: 1em;
+  cursor: pointer;
+}
+
+/* ====== 興味ある分野選択用モーダル ====== */
+#interestsModalBackdrop {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(0,0,0,0.5);
+  z-index: 2000;
+  align-items: center;
+  justify-content: center;
+}
+#interestsModalBackdrop.show {
+  display: flex;
+}
+#interestsModalBackdrop .modal-content {
+  max-width: 500px;
+}
+.categories-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 15px 0;
+}
+.category-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: #f9f9f9;
+  padding: 4px;
+  border-radius: 4px;
+}
+.category-item input[type="checkbox"] {
+  transform: scale(1.2);
+}
+.interests-display {
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid #ccc;
+  background: #f9f9f9;
+  min-height: 40px;
+}
+.interests-display div {
+  margin-bottom: 4px;
+  text-align: left;
+}
+</style>
+
+<div class="profile-edit-container">
+  <h2 class="profile-header-title">ユーザー情報 (プロフィール編集)</h2>
+  <div class="profile-layout">
+    <!-- 左側：プロフィール画像 -->
+    <div class="profile-photo-side">
+      <div class="profile-photo-container" id="profilePhotoContainer">
+        <img id="profilePhotoPreview" 
+             src="{% if current_user.topphoto %}
+                    {{ url_for('static', filename='uploads/' ~ current_user.topphoto) }}
+                  {% else %}
+                    {{ url_for('static', filename='images/default_user.png') }}
+                 {% endif %}" 
+             alt="Profile Photo">
+        <div class="edit-overlay">
+          <span>編集</span>
+        </div>
+      </div>
+    </div>
+    <!-- 右側：ユーザー情報フォーム -->
+    <div class="profile-form-side">
+      <form method="POST" enctype="multipart/form-data">
+        {{ form.hidden_tag() }}
+        <input type="hidden" name="cropped_image_data" id="croppedImageData">
+        <div>
+          {{ form.name.label }}<br>
+          {{ form.name(size=40) }}
+        </div>
+        <div>
+          {{ form.birthdate.label }}<br>
+          {{ form.birthdate() }}
+        </div>
+        <div>
+          {{ form.email.label }}<br>
+          {{ form.email(size=40) }}
+        </div>
+        <!-- 興味ある分野表示＋選択ボタン -->
+        <div>
+          <strong>興味ある分野</strong>
+          <button type="button" id="selectInterestsBtn">選択</button>
+          <div id="selectedInterestsDisplay" class="interests-display">
+            {% if user_interests %}
+              {% for cat in user_interests %}
+                <div>{{ cat.name }}</div>
+              {% endfor %}
+            {% else %}
+              <div>まだ選択されていません。</div>
+            {% endif %}
+          </div>
+          <input type="hidden" name="selected_interests" id="selectedInterestsInput" value="">
+        </div>
+        <button type="submit">更新</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- モーダル: プロフィール画像編集 (Cropper.js) -->
+<div class="modal-backdrop" id="photoModalBackdrop">
+  <div class="modal-content">
+    <span class="modal-close-btn" id="photoModalClose">&times;</span>
+    <h3>写真アップロード &amp; クロッピング</h3>
+
+    <input type="file" id="photoFileInput" accept="image/*">
+
+    <div id="cropper-container">
+      <img id="cropperImage" src="" alt="Crop Image" style="max-width:100%;">
+    </div>
+
+    <!-- 回転・リセット・次へボタンなど -->
+    <button id="rotateBtn">回転</button>
+    <button id="resetBtn">リセット</button>
+    <button id="saveCroppedBtn">次へ</button>
+
+    <input type="range" id="zoomRange" min="0.1" max="3" step="0.01" value="1">
+  </div>
+</div>
+
+<!-- モーダル：興味ある分野選択用 -->
+<div class="modal-backdrop" id="interestsModalBackdrop">
+  <div class="modal-content">
+    <span class="modal-close-btn" id="interestsModalClose">&times;</span>
+    <h3>興味ある分野を選択</h3>
+    <form id="interestsModalForm" class="interests-modal-form">
+      <div class="categories-grid">
+        {% for cat in all_categories %}
+          <label class="category-item">
+            <input type="checkbox" name="interest" value="{{ cat.name }}" {% if cat in user_interests %}checked{% endif %}>
+            {{ cat.name }}
+          </label>
+        {% endfor %}
+      </div>
+      <button type="button" id="confirmInterestsBtn">決定</button>
+    </form>
+  </div>
+</div>
+
+<!-- Cropper.js -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/cropper.min.css') }}">
+<script src="{{ url_for('static', filename='js/cropper.min.js') }}"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const photoModalBackdrop = document.getElementById('photoModalBackdrop');
+  const photoModalClose = document.getElementById('photoModalClose');
+  const photoFileInput = document.getElementById('photoFileInput');
+  const cropperImage = document.getElementById('cropperImage');
+  const zoomRange = document.getElementById('zoomRange');
+  const rotateBtn = document.getElementById('rotateBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const saveCroppedBtn = document.getElementById('saveCroppedBtn');
+
+  const profilePhotoContainer = document.getElementById('profilePhotoContainer');
+  const profilePhotoPreview = document.getElementById('profilePhotoPreview');
+  const croppedImageDataInput = document.getElementById('croppedImageData');
+
+  let cropper = null;
+
+  // (1) 「プロフィール画像」クリック → モーダル表示
+  profilePhotoContainer.addEventListener('click', () => {
+    photoModalBackdrop.classList.add('show');
+  });
+
+  // (2) モーダルの × ボタン
+  photoModalClose.addEventListener('click', () => {
+    photoModalBackdrop.classList.remove('show');
+    resetCropper();
+  });
+
+  // (3) ファイル選択
+  photoFileInput.addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 5*1024*1024) {
+      alert("5MB以下の画像を選択してください");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = evt => {
+      cropperImage.src = evt.target.result;
+      initCropper();
+    };
+    reader.readAsDataURL(file);
+  });
+
+  function initCropper() {
+    if (cropper) {
+      cropper.destroy();
+      cropper = null;
+    }
+    cropper = new Cropper(cropperImage, {
+      aspectRatio: 1,         // 正方形でクロップ
+      viewMode: 1,
+      dragMode: 'move',
+      autoCropArea: 1,
+      responsive: true,
+      background: false,
+      zoomOnWheel: true,     // ホイールズームを有効にする場合
+      movable: true,         // ドラッグで移動可
+      rotatable: true,       // 回転を許可
+      scalable: true,        // 拡大縮小ボタンを許可
+      zoomable: true,        // ズームスライダーなどを許可
+      ready() {
+        // Cropperの準備完了後に、要素へスタイルを当てる
+        const cropBox = document.querySelector('.cropper-crop-box');
+        const viewBox = document.querySelector('.cropper-view-box');
+        const face   = document.querySelector('.cropper-face');
+
+        if (cropBox) cropBox.style.borderRadius = '50%';
+        if (viewBox) viewBox.style.borderRadius = '50%';
+        if (face)    face.style.borderRadius    = '50%';
+      },
+    });
+  }
+
+  // ズーム
+  zoomRange.addEventListener('input', () => {
+    if(cropper) {
+      cropper.zoomTo(parseFloat(zoomRange.value));
+    }
+  });
+
+  // 回転
+  rotateBtn.addEventListener('click', () => {
+    if(cropper) {
+      currentRotation = (currentRotation + 90) % 360;
+      cropper.rotate(90);
+    }
+  });
+
+  // リセット
+  resetBtn.addEventListener('click', () => {
+    if(cropper) {
+      cropper.reset();
+      currentRotation = 0;
+      zoomRange.value = 1;
+    }
+  });
+
+  // 「次へ」 => 150x150のJPEGにして hidden へ格納
+  saveCroppedBtn.addEventListener('click', () => {
+  if (!cropper) return;
+  const canvas = cropper.getCroppedCanvas({
+    width: 150,
+    height: 150,
+    fillColor: '#fff'
+  });
+  const base64data = canvas.toDataURL('image/jpeg', 0.8);
+  console.log("生成されたBase64（先頭100文字）:", base64data.slice(0, 100) + "...");
+  croppedImageDataInput.value = base64data;
+  console.log("hiddenフィールドにセットされた値:", croppedImageDataInput.value.slice(0, 100) + "...");
+  
+  profilePhotoPreview.src = base64data;
+  photoModalBackdrop.classList.remove('show');
+  resetCropper();
+});
+
+  function resetCropper() {
+    if (cropper) {
+      cropper.destroy();
+      cropper = null;
+    }
+    cropperImage.src = "";
+    photoFileInput.value = "";
+    zoomRange.value = 1;
+  }
+
+  /* 興味ある分野選択用モーダル */
+  const selectInterestsBtn = document.getElementById('selectInterestsBtn');
+  const interestsModalBackdrop = document.getElementById('interestsModalBackdrop');
+  const interestsModalClose = document.getElementById('interestsModalClose');
+  const confirmInterestsBtn = document.getElementById('confirmInterestsBtn');
+  const interestsModalForm = document.getElementById('interestsModalForm');
+  const selectedInterestsDisplay = document.getElementById('selectedInterestsDisplay');
+  const selectedInterestsInput = document.getElementById('selectedInterestsInput');
+
+  selectInterestsBtn.addEventListener('click', function() {
+    interestsModalBackdrop.classList.add('show');
+  });
+
+  interestsModalClose.addEventListener('click', function() {
+    interestsModalBackdrop.classList.remove('show');
+  });
+
+  confirmInterestsBtn.addEventListener('click', function() {
+    const checkedBoxes = interestsModalForm.querySelectorAll('input[name="interest"]:checked');
+    const selectedNames = [];
+    const selectedIds = [];
+
+    checkedBoxes.forEach(cb => {
+      selectedNames.push(cb.value);
+      selectedIds.push(cb.value);
+    });
+
+    selectedInterestsInput.value = selectedIds.join(',');
+    if (selectedNames.length > 0) {
+      selectedInterestsDisplay.innerHTML = selectedNames.map(name => `<div>${name}</div>`).join('');
+    } else {
+      selectedInterestsDisplay.innerHTML = '<div>まだ選択されていません。</div>';
+    }
+    interestsModalBackdrop.classList.remove('show');
+  });
+});
+</script>
+
+{% endblock %}

@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}<i class="fa-solid fa-user"></i>{% endblock %}
+{% block content %}
+<h2><i class="fa-solid fa-user"></i> ユーザー設定</h2>
+<ul>
+    <li><a href="{{ url_for('user_profile') }}">ユーザー情報（プロフィール編集）</a></li>
+    <li><a href="{{ url_for('user_past') }}">過去のポストとコメント</a></li>
+    <li><a href="{{ url_for('my_user_info') }}">マイページ</a></li>
+    <li><a href="{{ url_for('logout') }}">ログアウト</a></li>
+</ul>
+{% endblock %}
