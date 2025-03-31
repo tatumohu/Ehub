@@ -4,5 +4,5 @@ services:
     env: python
     region: oregon         # 利用可能なリージョン（例: oregon）
     buildCommand: pip install -r requirements.txt
-    startCommand: python app.py
+    startCommand: gunicorn --worker-class eventlet -w 1 app:app --bind 0.0.0.0:$PORT
     plan: free             # 無料プランの場合
