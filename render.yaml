@@ -2,7 +2,7 @@ services:
   - type: web
     name: Ehub
     env: python
-    region: oregon         # 利用可能なリージョンの中から選択
+    region: oregon
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn --worker-class eventlet -w 1 app:app --bind 0.0.0.0:$PORT
     plan: free
