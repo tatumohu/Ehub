@@ -1,3 +1,7 @@
+import eventlet
+# DNS のパッチを無効にする
+eventlet.monkey_patch(dns=False)
+
 from flask import Flask, render_template, redirect, url_for, request, flash, jsonify
 from flask_wtf.csrf import CSRFProtect
 from config import Config, DevelopmentConfig, ProductionConfig
