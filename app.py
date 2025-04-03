@@ -15,11 +15,13 @@ import base64
 import os
 
 app = Flask(__name__)
-# FLASK_ENV によって適切な設定クラスを読み込む
+# FLASK_ENV により適切な設定クラスを読み込む
 if os.environ.get('FLASK_ENV') == 'production':
     app.config.from_object(ProductionConfig)
+    async_mode = 'eventlet'
 else:
     app.config.from_object(DevelopmentConfig)
+    async_mode = 'threading'
 
 db.init_app(app)
 migrate = Migrate(app, db)
@@ -29,10 +31,10 @@ login_manager.login_view = 'login'
 last_read_map = {}  # 例: { (user_id, idea_id): datetime, ... }
 
 # CSRF 保護を有効化
-csrf = CSRFProtect()
-csrf.init_app(app)
+csrf = CSRFProtect(app)
 
-socketio = SocketIO(app) 
+# SocketIO の初期化（本番では eventlet、開発では threading）
+socketio = SocketIO(app, async_mode=async_mode)
 
 CATEGORY_NAMES = [
     '製造・メーカー', '製薬・バイオテクノロジー', '農業・林業・水産業', '小売・卸売・商社', '観光・旅行・宿泊', '芸術・娯楽・レクリエーション',
@@ -962,6 +964,14 @@ def on_read_messages(data):
 # メイン起動部
 #############################
 if __name__ == '__main__':
-    # socketio.run で起動
-    socketio.run(app, debug=True, port=5001)
+    import os
+    env = os.environ.get("FLASK_ENV", "development")
+    if env == "development":
+        # 開発環境ならデバッグモードで起動
+        socketio.run(app, debug=True, port=5001)
+    else:
+        # 本番環境の場合、__main__ ブロックは通常使われませんが、
+        # ローカルで本番設定をテストする場合のために allow_unsafe_werkzeug を指定
+        socketio.run(app, debug=False, port=5001, allow_unsafe_werkzeug=True)
+
 
