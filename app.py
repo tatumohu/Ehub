@@ -1,7 +1,3 @@
-import eventlet
-# DNS のパッチを無効にする
-eventlet.monkey_patch(dns=False)
-
 from flask import Flask, render_template, redirect, url_for, request, flash, jsonify
 from flask_wtf.csrf import CSRFProtect
 from config import Config, DevelopmentConfig, ProductionConfig
@@ -22,10 +18,9 @@ app = Flask(__name__)
 # FLASK_ENV により適切な設定クラスを読み込む
 if os.environ.get('FLASK_ENV') == 'production':
     app.config.from_object(ProductionConfig)
-    async_mode = 'eventlet'
 else:
     app.config.from_object(DevelopmentConfig)
-    async_mode = 'threading'
+async_mode = 'threading'
 
 db.init_app(app)
 migrate = Migrate(app, db)
