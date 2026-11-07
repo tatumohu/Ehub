@@ -1,0 +1,13 @@
+159,162c\
+                      ) : notif.type === 'follow_request' ? (\
+                        <>\
+                          <Link to={`/profile/${notif.from_user_id}`} className="font-bold text-white hover:text-blue-400 transition-colors">{notif.from_user_name}</Link> {language === 'ja' ? 'がプロジェクトへの参加を希望しています:' : 'wants to join your project:'} <span className="font-bold text-white">"{notif.idea_title}"</span>\
+                          <div className="mt-3 bg-slate-900 border border-slate-800 rounded-xl p-4 text-sm text-slate-300 space-y-2">\
+                            {notif.follow_reason && <p><span className="text-slate-500">{language === 'ja' ? '参加理由' : 'Reason'}:</span> {notif.follow_reason}</p>}\
+                            {notif.follow_skills && <p><span className="text-slate-500">{language === 'ja' ? 'スキル' : 'Skills'}:</span> {notif.follow_skills}</p>}\
+                            {notif.follow_role && <p><span className="text-slate-500">{language === 'ja' ? '役割' : 'Role'}:</span> {notif.follow_role}</p>}\
+                            {notif.follow_period && <p><span className="text-slate-500">{language === 'ja' ? '期間' : 'Period'}:</span> {notif.follow_period}</p>}\
+                            {notif.follow_hours && <p><span className="text-slate-500">{language === 'ja' ? '時間' : 'Hours'}:</span> {notif.follow_hours}</p>}\
+                            {notif.follow_message && <p><span className="text-slate-500">{language === 'ja' ? 'メッセージ' : 'Message'}:</span> {notif.follow_message}</p>}\
+                          </div>\
+                        </>
