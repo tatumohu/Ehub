@@ -36,7 +36,7 @@ export async function requestAIText(options: RequestInit) {
 
 export async function generateImage(prompt: string) {
   const response = await getOpenAI().images.generate({
-    model: process.env.OPENAI_IMAGE_MODEL || 'gpt-image-1',
+    model: process.env.OPENAI_IMAGE_MODEL || 'gpt-image-2.5-flare',
     prompt, size: '1536x1024', n: 1,
   });
   const base64 = response.data?.[0]?.b64_json;

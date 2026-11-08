@@ -168,6 +168,7 @@ export default function Search() {
       {trendingItems.length > 0 && (() => {
         return (
           <div 
+            data-responsive-carousel="true"
             className="relative w-full h-[22vh] min-h-[190px] md:h-[28vh] md:min-h-[240px] xl:h-[34vh] xl:min-h-[280px] overflow-hidden group pt-2 md:pt-3"
             onTouchStart={(e) => setHeroTouchStart(e.targetTouches[0].clientX)}
             onTouchEnd={(e) => {

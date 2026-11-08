@@ -56,27 +56,27 @@ export default function StageEvaluationModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 dark:bg-black/80 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-md border border-slate-200 dark:border-slate-700 shadow-2xl p-6" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/60  backdrop-blur-sm" onClick={onClose}>
+      <div data-ui-dialog="project-stage" role="dialog" aria-modal="true" className="bg-white rounded-3xl w-full max-w-md border border-slate-200 shadow-2xl p-6 max-h-[calc(100dvh-2rem)] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+          <h2 className="text-xl font-bold text-slate-900  flex items-center gap-2">
             {language === 'ja' ? 'ステージを評価' : 'Evaluate Stage'}
             {isSubmitting && <Loader2 className="w-5 h-5 animate-spin text-emerald-500" />}
           </h2>
-          <button onClick={onClose} disabled={isSubmitting} className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-50">
+          <button aria-label="Close stage" onClick={onClose} disabled={isSubmitting} className="p-2 text-slate-600 hover:text-slate-700  rounded-full hover:bg-slate-100  transition-colors disabled:opacity-50">
             <X className="w-5 h-5" />
           </button>
         </div>
-        
+
         <div className="flex justify-center mb-4">
-          <SimpleStageIndicator 
-            currentStage={selectedStage} 
-            interactive={!isSubmitting} 
+          <SimpleStageIndicator
+            currentStage={selectedStage}
+            interactive={!isSubmitting}
             onSelect={(st) => {
               if (st >= safeMinStage && !isSubmitting) {
                 handleSubmit(st);
               }
-            }} 
+            }}
           />
         </div>
       </div>

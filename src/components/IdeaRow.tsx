@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Heart, MessageSquare, Bookmark, Users, Lightbulb, Lock } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { STAGES } from './SimpleStageIndicator';
@@ -16,6 +16,7 @@ export interface IdeaRowProps {
 
 export default function IdeaRow({ title, items, icon, onQuoteClick }: IdeaRowProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { language } = useAppContext();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [showPermittedUsersModal, setShowPermittedUsersModal] = useState<number[] | null>(null);
@@ -42,7 +43,7 @@ export default function IdeaRow({ title, items, icon, onQuoteClick }: IdeaRowPro
           <h2 className="text-lg md:text-xl font-bold text-slate-900 dark:text-white tracking-tight">{title}</h2>
         </div>
         <button 
-          onClick={() => navigate('/list', { state: { title, items } })}
+          onClick={() => navigate('/list', { state: { title, items, section: location.pathname === '/projects' ? 'project' : undefined } })}
           className="px-3 py-1 bg-white hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white text-xs md:text-sm rounded-full transition-colors font-medium border border-slate-200 dark:border-slate-700 shadow-sm cursor-pointer"
         >
           {language === 'ja' ? '一覧' : 'List'}
@@ -79,7 +80,7 @@ export default function IdeaRow({ title, items, icon, onQuoteClick }: IdeaRowPro
                 className="w-[170px] sm:w-[210px] md:w-[250px] shrink-0 snap-start md:flex-none group"
               >
                 <div className="block">
-                  <Link to={targetUrl} className="block bg-white dark:bg-[#0b0f19] border border-slate-200 dark:border-cyan-500/20 hover:border-blue-400 dark:hover:border-cyan-500/50 rounded-2xl overflow-hidden group shadow-sm hover:shadow-md dark:shadow-[0_4px_20px_rgba(0,0,0,0.4)] transition-all hover:scale-[1.01] flex flex-col h-full">
+                  <Link to={targetUrl} state={{section:Number(item.is_buyout)===1?'store':location.pathname==='/projects'?'project':undefined}} className="block bg-white dark:bg-[#0b0f19] border border-slate-200 dark:border-cyan-500/20 hover:border-blue-400 dark:hover:border-cyan-500/50 rounded-2xl overflow-hidden group shadow-sm hover:shadow-md dark:shadow-[0_4px_20px_rgba(0,0,0,0.4)] transition-all hover:scale-[1.01] flex flex-col h-full">
                     <div className="relative aspect-[16/10] bg-slate-100 dark:bg-slate-900 overflow-hidden">
                       <img 
                         src={item.image || undefined} 
@@ -91,7 +92,7 @@ export default function IdeaRow({ title, items, icon, onQuoteClick }: IdeaRowPro
                       
                       <div className="absolute top-2 left-2 z-10 flex items-center gap-1.5 flex-wrap">
                         <span className="px-2 py-0.5 rounded-full bg-blue-600/80 dark:bg-cyan-500/20 backdrop-blur-md border border-blue-400/40 dark:border-cyan-500/40 text-white dark:text-cyan-300 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider shadow-md">
-                          {item.type === 'project' ? 'Vision' : 'Idea'}
+                          {Number(item.is_recruitment) === 1 ? 'Project' : item.type === 'project' ? 'Vision' : 'Idea'}
                         </span>
                         {Number(item.is_buyout) === 1 ? (
                           <span className="px-2 py-0.5 rounded-full bg-emerald-500/90 backdrop-blur-md text-white text-[9px] sm:text-[10px] font-bold shadow-md">
@@ -127,13 +128,13 @@ export default function IdeaRow({ title, items, icon, onQuoteClick }: IdeaRowPro
                         )}
                       </div>
 
-                      <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                      <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex flex-col items-stretch gap-2 text-[11px] text-slate-500 dark:text-slate-400">
                         <div 
                           onClick={(e) => {
                             e.stopPropagation();
                             navigate(`/profile/${item.author_id}`);
                           }}
-                          className="flex items-center gap-1.5 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer max-w-[65%]"
+                          className="flex items-center gap-1.5 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer min-w-0 max-w-full"
                         >
                           <img 
                             src={item.author_avatar || undefined} 
@@ -143,7 +144,7 @@ export default function IdeaRow({ title, items, icon, onQuoteClick }: IdeaRowPro
                           <span className="font-semibold truncate text-[11px]">{item.author_name}</span>
                         </div>
 
-                        <div className="flex items-center gap-2 shrink-0 text-[10px] sm:text-[11px]">
+                        <div className="flex flex-wrap items-center justify-between gap-1 text-[10px] sm:text-[11px]">
                           <span className="flex items-center gap-0.5 hover:text-pink-500 transition-colors" title="Likes">
                             <Heart className="w-3.5 h-3.5 text-pink-500" />
                             <span className="font-medium text-slate-700 dark:text-slate-300">{item.likes_count || 0}</span>

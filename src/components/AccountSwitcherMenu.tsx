@@ -82,7 +82,7 @@ export default function AccountSwitcherMenu({ onClose, onOpenPricing }: AccountS
   ];
 
   return (
-    <div className="w-[320px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl overflow-hidden z-50 text-slate-900 dark:text-slate-100">
+    <div className="w-full sm:w-[320px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl overflow-hidden z-50 text-slate-900 dark:text-slate-100">
       {/* Current Active User Summary */}
       <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800">
         <div className="flex items-center gap-3">

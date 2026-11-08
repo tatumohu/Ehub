@@ -90,7 +90,7 @@ export default function OfferSearchModal({
 
   const modalContent = (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl w-full max-w-lg max-h-[85dvh] flex flex-col overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+      <div data-ui-dialog="proposal-search" className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl w-full max-w-lg max-h-[85dvh] flex flex-col overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
         <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800 shrink-0">
           <h3 className="text-lg font-bold text-slate-900 dark:text-white tracking-widest uppercase">
             {language === 'ja' ? '提案先（法人・自治体）の検索' : 'Search Corporate / Municipality'}
@@ -158,7 +158,7 @@ export default function OfferSearchModal({
                   className="flex items-center gap-3 p-3 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                   onClick={() => toggleUser(u.id)}
                 >
-                  <div className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 border transition-all ${
+                  <div data-proposal-recipient="true" className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 border transition-all ${
                     selectedIds.includes(u.id) ? 'bg-blue-500 border-blue-500' : 'bg-transparent border-slate-300 dark:border-slate-600'
                   }`}>
                     {selectedIds.includes(u.id) && <Check className="w-4 h-4 text-white" />}
@@ -185,7 +185,7 @@ export default function OfferSearchModal({
         <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0">
           <button 
             type="button"
-            onClick={handleNext}
+            data-proposal-next="true" onClick={handleNext}
             disabled={selectedIds.length === 0}
             className={`w-full py-3 font-bold rounded-xl transition-all ${
               selectedIds.length > 0 

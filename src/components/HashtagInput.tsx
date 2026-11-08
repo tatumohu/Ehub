@@ -90,12 +90,13 @@ export default function HashtagInput({ value, onChange }: { value: string, onCha
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const { language } = useAppContext();
 
-  // Auto-resize textarea when value changes
+  // Reflow long tags when the viewport is resized as well as when typing.
   useEffect(() => {
-    if (inputRef.current) {
-      inputRef.current.style.height = 'auto';
-      inputRef.current.style.height = `${inputRef.current.scrollHeight}px`;
-    }
+    const element=inputRef.current;if(!element)return;
+    const resize=()=>{element.style.height='auto';element.style.height=`${element.scrollHeight}px`};
+    resize();let width=element.getBoundingClientRect().width;
+    const observer=new ResizeObserver(()=>{const next=element.getBoundingClientRect().width;if(Math.abs(next-width)>.5){width=next;resize()}});
+    observer.observe(element);return()=>observer.disconnect();
   }, [value]);
 
   const handleFocus = () => {

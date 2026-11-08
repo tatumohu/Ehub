@@ -1,0 +1,17 @@
+import {Link} from 'react-router-dom';
+import {MessageCircle} from 'lucide-react';
+import {useAppContext} from '../../context/AppContext';
+import {visionHref,type VisionPost} from './visionTools';
+import VisionReplyActions from './VisionReplyActions';
+import type {VisionReply} from './replyTools';
+export default function VisionReplies({post,replies,onReply,manage=true}:{post:VisionPost;replies:VisionReply[];onReply:(reply:VisionReply)=>void;manage?:boolean}){
+ const {language}=useAppContext(),ja=language==='ja',byId=new Map(replies.map(r=>[r.id,r])),children=new Map<number|null,VisionReply[]>();
+ for(const r of replies){const parent=r.parent_id&&byId.has(r.parent_id)?r.parent_id:null;children.set(parent,[...(children.get(parent)||[]),r])}
+ const liveBelow=(r:VisionReply,seen=new Set<number>()):number=>{if(seen.has(r.id))return 0;const path=new Set(seen).add(r.id);return (r.deleted_at?0:1)+(children.get(r.id)||[]).reduce((n,c)=>n+liveBelow(c,path),0)};
+ const render=(r:VisionReply,depth=0,seen=new Set<number>()):React.ReactNode=>{
+  if(seen.has(r.id)||!liveBelow(r))return null;
+  const path=new Set(seen).add(r.id),nested=(children.get(r.id)||[]).filter(c=>liveBelow(c)>0),parent=byId.get(r.parent_id!),below=nested.reduce((n,c)=>n+liveBelow(c),0);
+  return <div key={r.id} className={depth&&depth<=2?'ml-4 sm:ml-8':''}><article id={`reply-${r.id}`} data-testid="vision-comment" data-reply-id={r.id} data-deleted-reply={!!r.deleted_at||undefined} className="relative flex min-w-0 gap-3 border-b border-slate-100 py-4"><div className="relative flex w-9 shrink-0 justify-center">{!r.deleted_at&&<Link to={`/profile/${r.user_id}`}>{r.author_avatar&&<img src={r.author_avatar} alt="" className="h-9 w-9 rounded-full"/>}</Link>}{nested.length>0&&<span className="absolute top-11 bottom-0 border-l-2 border-slate-200"/>}</div><div className="min-w-0 flex-1">{r.deleted_at?<p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-500">{ja?'この返信は削除されました。':'This reply was deleted.'}</p>:<><div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 pr-10"><Link to={`/profile/${r.user_id}`} className="break-all text-sm font-bold text-slate-900">{r.author_name}</Link><Link to={`${visionHref(post)}#reply-${r.id}`} className="text-xs text-slate-500"><time dateTime={r.created_at}>{new Date(r.created_at).toLocaleString(ja?'ja-JP':'en-US')}</time></Link>{r.edited_at&&<span className="text-xs text-slate-500">{ja?'編集済み':'Edited'}</span>}</div><p className="mt-1 break-all text-xs text-slate-500">{ja?'返信先：':'Replying to '}<span className="text-blue-600">{parent?.deleted_at?(ja?'削除された返信':'Deleted reply'):`@${parent?.author_name||post.author_name}`}</span></p><p data-testid="reply-body" className="mt-2 whitespace-pre-wrap text-sm leading-7 text-slate-900 [overflow-wrap:anywhere]">{r.content}</p><button type="button" data-testid="reply-to-reply" aria-label={`${r.author_name}${ja?'さんに返信':' · Reply'}`} onClick={()=>onReply(r)} className="mt-2 inline-flex min-h-10 min-w-10 items-center justify-center gap-2 rounded-full px-2 text-xs text-slate-500 hover:bg-blue-50 hover:text-blue-600"><MessageCircle className="h-4 w-4"/>{below||''}</button><div className="absolute right-0 top-3">{manage&&<VisionReplyActions post={post} reply={r}/>}</div></>}</div></article>{nested.map(child=>render(child,depth+1,path))}</div>;
+ };
+ return <div data-testid="vision-reply-thread">{(children.get(null)||[]).map(r=>render(r))}</div>;
+}

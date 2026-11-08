@@ -1,6 +1,6 @@
 import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
-import { UserCircle, Inbox, Search as SearchIcon, Grip, NotebookPen, Search, FileSignature, Bell, ChevronDown, Home, Lightbulb, Briefcase, User, Sparkles, Users, ShoppingCart } from 'lucide-react';
+import { UserCircle, Inbox, Search as SearchIcon, Search, Bell, ChevronDown, Home, Lightbulb, Briefcase, User, Sparkles, Users, ShoppingCart } from 'lucide-react';
 import PlanUpgradeModal from './PlanUpgradeModal';
 import ScoutChatModal from './ScoutChatModal';
 import ScoutInboxModal from './ScoutInboxModal';
@@ -13,6 +13,8 @@ import React, { useState, useEffect, useRef } from 'react';
 export default function Navbar() {
   const { user, login, logout, socket, language, unreadOfferCount, unreadRecruitmentCount, unreadNotificationsCount } = useAppContext();
   const [showLogin, setShowLogin] = useState(false);
+  const [authError, setAuthError] = useState('');
+  const [isSigningIn, setIsSigningIn] = useState(false);
   const [modalMode, setModalMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState(localStorage.getItem('ehub_last_email') || '');
   const [password, setPassword] = useState('');
@@ -24,10 +26,8 @@ export default function Navbar() {
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [notifications, setNotifications] = useState<any[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [showAppsMenu, setShowAppsMenu] = useState(false);
   const [showAccountSwitcher, setShowAccountSwitcher] = useState(false);
   const location = useLocation();
-  const appsMenuRef = useRef<HTMLDivElement>(null);
   const accountMenuRef = useRef<HTMLDivElement>(null);
   const [activeSubTab, setActiveSubTab] = useState<'recruitment' | 'offer' | 'buyout'>('recruitment');
   const [showPlanUpgradeModal, setShowPlanUpgradeModal] = useState(false);
@@ -56,9 +56,6 @@ export default function Navbar() {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (appsMenuRef.current && !appsMenuRef.current.contains(event.target as Node)) {
-        setShowAppsMenu(false);
-      }
       if (accountMenuRef.current && !accountMenuRef.current.contains(event.target as Node)) {
         setShowAccountSwitcher(false);
       }
@@ -217,23 +214,32 @@ export default function Navbar() {
 
   const handleUsernameLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username.trim()) return;
-
+    if (!username.trim() || isSigningIn) return;
+    setAuthError('');
+    setIsSigningIn(true);
     try {
       const res = await fetch('/api/login/username', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: username.trim() })
+        body: JSON.stringify({ username: username.trim() }),
+        signal: AbortSignal.timeout(15000)
       });
+      if (!res.headers.get('content-type')?.includes('application/json')) {
+        throw new Error('Invalid server response');
+      }
       const data = await res.json();
-      if (res.ok) {
+      if (res.ok && data.id) {
         login(data);
         setShowLogin(false);
       } else {
-        alert(data.error);
+        setAuthError(data.error || (language === 'ja' ? 'ログインできませんでした。' : 'Unable to sign in.'));
       }
-    } catch (err) {
-      console.error(err);
+    } catch {
+      setAuthError(language === 'ja'
+        ? 'サーバーに接続できません。E-hubが起動していることを確認して、もう一度お試しください。'
+        : 'Cannot connect to the server. Make sure E-hub is running, then try again.');
+    } finally {
+      setIsSigningIn(false);
     }
   };
 
@@ -288,6 +294,7 @@ export default function Navbar() {
               <div className="flex-1 min-w-0 px-1 sm:px-4">
                 <button 
                   type="button"
+                  data-testid="open-search"
                   onClick={() => setShowSearchModal(true)}
                   className="relative w-full text-left group"
                 >
@@ -299,7 +306,7 @@ export default function Navbar() {
                 </button>
               </div>
 
-              <div className="flex items-center shrink-0 justify-end gap-1 sm:gap-3 relative" ref={appsMenuRef}>
+              <div className="flex items-center shrink-0 justify-end gap-1 sm:gap-3 relative">
                 <button
                   onClick={() => navigate('/notifications')}
                   className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 relative transition-colors shrink-0"
@@ -329,7 +336,7 @@ export default function Navbar() {
                     </button>
 
                     {showAccountSwitcher && (
-                      <div className="absolute top-12 right-0 z-50 animate-scale-in">
+                      <div data-account-popover="true" className="fixed inset-x-3 top-16 sm:absolute sm:inset-x-auto sm:top-12 sm:right-0 z-50 animate-scale-in max-h-[calc(100dvh-9rem)] overflow-y-auto rounded-2xl">
                         <AccountSwitcherMenu
                           onClose={() => setShowAccountSwitcher(false)}
                           onOpenPricing={() => setShowPlanUpgradeModal(true)}
@@ -339,7 +346,8 @@ export default function Navbar() {
                   </div>
                 ) : (
                   <button 
-                    onClick={() => setShowLogin(true)}
+                    data-testid="open-login"
+                    onClick={() => { setAuthError(''); setShowLogin(true); }}
                     className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-xl transition-all shadow-md shadow-blue-600/20 shrink-0"
                   >
                     <UserCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -347,125 +355,13 @@ export default function Navbar() {
                   </button>
                 )}
 
-                <button
-                  onClick={() => setShowAppsMenu(!showAppsMenu)}
-                  className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors shrink-0"
-                  title="ツール"
-                >
-                  <Grip className="w-4 h-4 sm:w-5 sm:h-5" />
-                </button>
-                
-                {showAppsMenu && (
-                  <div className="absolute top-12 right-0 w-[280px] bg-white dark:bg-[#0b0f19] border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-2xl z-50">
-                    <h3 className="text-slate-900 dark:text-slate-100 font-bold mb-3 text-xs uppercase tracking-wider">{language === 'ja' ? '便利ツール' : 'Utilities'}</h3>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button 
-                        onClick={() => { setShowAppsMenu(false); navigate('/memos'); }}
-                        className="flex flex-col items-center gap-1.5 p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors group text-center border border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700 shadow-sm"
-                      >
-                        <div className="w-10 h-10 bg-yellow-500/10 text-yellow-600 rounded-xl flex items-center justify-center">
-                          <NotebookPen className="w-5 h-5" />
-                        </div>
-                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200">メモ管理</span>
-                      </button>
 
-                      <button 
-                        onClick={() => { setShowAppsMenu(false); navigate('/contracts'); }}
-                        className="flex flex-col items-center gap-1.5 p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors group text-center border border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700 shadow-sm"
-                      >
-                        <div className="w-10 h-10 bg-indigo-500/10 text-indigo-600 rounded-xl flex items-center justify-center">
-                          <FileSignature className="w-5 h-5" />
-                        </div>
-                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200">契約文章</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           </div>
         </nav>
         
-        {/* Sub Navigation Bar (Only on Home screen) */}
-        {location.pathname === '/' && (
-          <div className="w-full bg-white/80 dark:bg-[#0b0f19]/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 relative z-40 shadow-sm transition-colors overflow-hidden">
-            <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 h-12 sm:h-14 flex items-center justify-between gap-2 sm:gap-4">
-              <div className="flex items-center gap-1.5 sm:gap-4 overflow-x-auto scrollbar-none flex-1 py-1 min-w-0">
-                <Link 
-                  to="/"
-                  className={`flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full font-bold text-xs sm:text-sm shrink-0 whitespace-nowrap transition-all ${location.pathname === '/' ? 'text-blue-600 dark:text-cyan-400 bg-blue-50 dark:bg-cyan-950/40 border border-blue-200 dark:border-cyan-500/30' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-                >
-                  <Home className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  <span>{language === 'ja' ? 'ホーム' : 'Home'}</span>
-                </Link>
-                
-                <Link 
-                  to="/search"
-                  className={`flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full font-bold text-xs sm:text-sm shrink-0 whitespace-nowrap transition-all ${(location.pathname as string) === '/search' ? 'text-blue-600 dark:text-cyan-400 bg-blue-50 dark:bg-cyan-950/40 border border-blue-200 dark:border-cyan-500/30' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-                >
-                  <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-500 dark:text-cyan-400" />
-                  <span>Vision</span>
-                </Link>
 
-                <Link 
-                  to="/list?type=recruitment"
-                  className={`flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full font-bold text-xs sm:text-sm shrink-0 whitespace-nowrap transition-all ${location.search.includes('type=recruitment') ? 'text-blue-600 dark:text-cyan-400 bg-blue-50 dark:bg-cyan-950/40 border border-blue-200 dark:border-cyan-500/30' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-                >
-                  <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-500" />
-                  <span>Project</span>
-                  {user?.account_type === 'organization' && unreadRecruitmentCount > 0 && (
-                    <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-0.5">
-                      {unreadRecruitmentCount}
-                    </span>
-                  )}
-                </Link>
-
-                <Link 
-                  to="/list?type=offer"
-                  className={`flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full font-bold text-xs sm:text-sm shrink-0 whitespace-nowrap transition-all ${location.search.includes('type=offer') ? 'text-blue-600 dark:text-cyan-400 bg-blue-50 dark:bg-cyan-950/40 border border-blue-200 dark:border-cyan-500/30' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-                >
-                  <Briefcase className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-pink-500" />
-                  <span>Proposal</span>
-                </Link>
-
-                <Link 
-                  to="/list?type=buyout"
-                  className={`flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full font-bold text-xs sm:text-sm shrink-0 whitespace-nowrap transition-all ${location.search.includes('type=buyout') ? 'text-blue-600 dark:text-cyan-400 bg-blue-50 dark:bg-cyan-950/40 border border-blue-200 dark:border-cyan-500/30' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-                >
-                  <ShoppingCart className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-600" />
-                  <span>Buyout</span>
-                </Link>
-              </div>
-              
-              {(user?.account_type === 'organization' || user?.account_type === 'corporate' || user?.account_type === 'municipality') ? (
-                <button
-                  onClick={() => {
-                    const currentPlan = user.org_plan || 'light';
-                    const isLight = currentPlan === 'light' || currentPlan === 'basic';
-                    if (isLight) {
-                      setShowPlanUpgradeModal(true);
-                    } else {
-                      setShowScoutChatModal(true);
-                    }
-                  }}
-                  className="shrink-0 whitespace-nowrap bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-2.5 py-1.5 sm:px-4 sm:py-1.5 rounded-full text-xs font-bold flex items-center gap-1 sm:gap-1.5 shadow-md shadow-indigo-600/20 transition-all"
-                >
-                  <Search className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                  <span>{language === 'ja' ? 'AIスカウト' : 'AI Scout'}</span>
-                </button>
-              ) : user ? (
-                <button
-                  onClick={() => setShowScoutInboxModal(true)}
-                  className="shrink-0 whitespace-nowrap bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 px-2.5 py-1.5 sm:px-3.5 sm:py-1.5 rounded-full text-xs font-bold flex items-center gap-1 sm:gap-1.5 transition-colors shadow-sm"
-                >
-                  <Inbox className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-blue-600 dark:text-cyan-400" />
-                  <span>{language === 'ja' ? 'スカウト' : 'Scouts'}</span>
-                </button>
-              ) : null}
-    
-            </div>
-          </div>
-        )}
       </div>
 
       {showScoutInboxModal && (
@@ -484,7 +380,8 @@ export default function Navbar() {
               <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-6">
                 {modalMode === 'login' ? (language === 'ja' ? 'ログイン' : 'Login') : (language === 'ja' ? 'E-hubへようこそ' : 'Welcome to E-hub')}
               </h2>
-              <form onSubmit={handleUsernameLogin} className="space-y-4">
+              <form data-testid="login-form" onSubmit={handleUsernameLogin} className="space-y-4">
+                {authError && <p role="alert" className="text-sm text-red-600 dark:text-red-400">{authError}</p>}
                 <div>
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                     {language === 'ja' ? 'ユーザー名' : 'Username'}
@@ -501,9 +398,10 @@ export default function Navbar() {
                 
                 <button 
                   type="submit"
+                  disabled={isSigningIn}
                   className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-3 rounded-xl transition-colors shadow-sm"
                 >
-                  {language === 'ja' ? 'サインイン' : 'Sign In'}
+                  {isSigningIn ? (language === 'ja' ? 'ログイン中…' : 'Signing in…') : (language === 'ja' ? 'サインイン' : 'Sign In')}
                 </button>
                 
                 <div className="flex gap-3 pt-4">

@@ -82,29 +82,29 @@ export default function AddMembersModal({ isOpen, onClose, itemId, itemType, onM
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-[300] flex items-center justify-center p-4"
     >
       <div
         onClick={onClose}
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
       />
       <div
-        className="relative w-full max-w-md bg-slate-900 rounded-3xl border border-slate-800 shadow-2xl overflow-hidden"
+        data-ui-dialog="project-members" role="dialog" aria-modal="true" className="relative w-full max-w-md bg-white rounded-3xl border border-slate-200 shadow-2xl max-h-[calc(100dvh-2rem)] overflow-y-auto"
       >
-        <div className="p-6 border-b border-slate-800 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-white">Add Members</h2>
-          <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-full transition-colors">
-            <X className="w-5 h-5 text-slate-400" />
+        <div className="p-6 border-b border-slate-200 flex items-center justify-between">
+          <h2 className="text-xl font-bold text-slate-900">Add Members</h2>
+          <button aria-label="Close members" onClick={onClose} className="p-2 hover:bg-slate-50 rounded-full transition-colors">
+            <X className="w-5 h-5 text-slate-600" />
           </button>
         </div>
 
         <div className="p-4">
-          <div className="flex items-center justify-between mb-6 bg-slate-800/50 p-1 rounded-2xl">
+          <div className="flex flex-wrap gap-2 items-center justify-between mb-6 bg-slate-50/50 p-1 rounded-2xl">
             <div className="flex gap-1">
               <button
                 onClick={() => setActiveTab('followers')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                  activeTab === 'followers' ? 'bg-blue-500 text-white shadow-lg' : 'text-slate-400 hover:text-white'
+                  activeTab === 'followers' ? 'bg-blue-500 text-white shadow-lg' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 <Users className="w-4 h-4" />
@@ -113,7 +113,7 @@ export default function AddMembersModal({ isOpen, onClose, itemId, itemType, onM
               <button
                 onClick={() => setActiveTab('contacts')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                  activeTab === 'contacts' ? 'bg-blue-500 text-white shadow-lg' : 'text-slate-400 hover:text-white'
+                  activeTab === 'contacts' ? 'bg-blue-500 text-white shadow-lg' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 <Contact className="w-4 h-4" />
@@ -121,12 +121,12 @@ export default function AddMembersModal({ isOpen, onClose, itemId, itemType, onM
               </button>
             </div>
             <button
-               onClick={handleAddMembers}
+               data-testid="project-members-add" onClick={handleAddMembers}
                disabled={selectedUserIds.size === 0 || loading}
                className={`px-6 py-2 rounded-xl text-sm font-bold transition-all ${
-                  selectedUserIds.size > 0 
-                     ? 'bg-white text-slate-900 hover:bg-slate-200' 
-                     : 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                  selectedUserIds.size > 0
+                     ? 'bg-white text-slate-900 hover:bg-slate-200'
+                     : 'bg-slate-100 text-slate-500 cursor-not-allowed'
                }`}
             >
                {loading ? 'Adding...' : `Add (${selectedUserIds.size})`}
@@ -142,22 +142,23 @@ export default function AddMembersModal({ isOpen, onClose, itemId, itemType, onM
               currentList.map((u) => (
                 <div
                   key={u.id}
+                  data-member-candidate={u.id}
                   onClick={() => toggleUserSelection(u.id)}
-                  className="flex items-center gap-4 p-3 rounded-2xl border border-slate-800 hover:border-slate-700 bg-slate-800/30 cursor-pointer transition-all group"
+                  className="flex items-center gap-4 p-3 rounded-2xl border border-slate-200 hover:border-slate-200 bg-slate-50/30 cursor-pointer transition-all group"
                 >
                   <button
                     className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
                       selectedUserIds.has(u.id)
                         ? 'bg-emerald-500 text-white'
-                        : 'bg-slate-700 text-slate-400 group-hover:bg-slate-600'
+                        : 'bg-slate-100 text-slate-600 group-hover:bg-slate-200'
                     }`}
                   >
                     {selectedUserIds.has(u.id) ? <Check className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
                   </button>
                   <img src={u.avatar || undefined} alt={u.username} className={`w-10 h-10 rounded-full object-cover ${getAccountTypeBorderClass(u.account_type, 'border-2')}`} />
                   <div className="flex-1">
-                    <p className="font-bold text-white">{u.username}</p>
-                    <div className="h-0.5 w-12 bg-slate-700 rounded-full mt-1 group-hover:bg-blue-500/50 transition-colors" />
+                    <p className="font-bold text-slate-900">{u.username}</p>
+                    <div className="h-0.5 w-12 bg-slate-100 rounded-full mt-1 group-hover:bg-blue-500/50 transition-colors" />
                   </div>
                 </div>
               ))

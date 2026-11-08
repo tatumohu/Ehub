@@ -1,3 +1,4 @@
+import useVisionRevision from '../components/vision/useVisionRevision';
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { ChevronLeft, Heart, MessageSquare, Bookmark, Users, Lightbulb, Lock, Plus, ShoppingCart, Sparkles, Briefcase, Flame, User as UserIcon, Building2, Landmark } from 'lucide-react';
@@ -11,15 +12,16 @@ import HashtagDisplay from '../components/HashtagDisplay';
 import AccountTypeBadge from '../components/AccountTypeBadge';
 import { getAccountTypeBorderClass } from '../utils/avatar';
 
-export default function ListView() {
+export default function ListView({ mode }: { mode?: string } = {}) {
   const location = useLocation();
+  const revision=useVisionRevision();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user, language, unreadRecruitmentCount, refreshUnreadRecruitmentCount } = useAppContext();
-  
+
   const state = location.state as { title?: string, items?: any[] };
-  const typeParam = searchParams.get('type');
-  
+  const typeParam = mode || searchParams.get('type');
+
   const [items, setItems] = useState<any[]>(state?.items || []);
   const [loading, setLoading] = useState(!state?.items);
   const [title, setTitle] = useState<string>(state?.title || '');
@@ -91,6 +93,8 @@ export default function ListView() {
              setTitle(language === 'ja' ? `「${qParam}」の検索結果` : `Search results for "${qParam}"`);
           } else if (typeParam === 'recruitment') {
              setTitle(language === 'ja' ? 'Project' : 'Project');
+          } else if (typeParam === 'project-hub') {
+             setTitle('Project');
           } else if (typeParam === 'offer') {
              setTitle(language === 'ja' ? 'Proposal' : 'Proposal');
           } else if (typeParam === 'buyout') {
@@ -123,13 +127,13 @@ export default function ListView() {
 
           const projectsWithType = (Array.isArray(projectsData) ? projectsData : []).filter(filterVisible).map((item: any) => ({ ...item, type: 'project' }));
           const ideasWithType = (Array.isArray(allIdeasData) ? allIdeasData : []).filter(filterVisible).map((item: any) => ({ ...item, type: 'idea' }));
-          
+
           if (typeParam === 'recruitment') {
             const rawRecruitmentItems = [
               ...ideasWithType.filter((item: any) => Number(item.is_recruitment) === 1 && Number(item.is_private) !== 1),
               ...projectsWithType.filter((item: any) => Number(item.is_recruitment) === 1 && Number(item.is_private) !== 1)
             ];
-            
+
             // New items: sorted by created_at DESC
             const newRecruitmentItems = [...rawRecruitmentItems].sort((a, b) => {
               const aTime = new Date((a.created_at || '') + (!(a.created_at || '').includes('Z') ? 'Z' : '')).getTime();
@@ -148,7 +152,7 @@ export default function ListView() {
             const recRaw = (Array.isArray(recommendedData) ? recommendedData : []).filter(filterVisible).filter((item: any) => Number(item.is_recruitment) === 1);
             const recMap = new Map();
             recRaw.forEach((item: any) => recMap.set(`${item.type}-${item.id}`, item));
-            
+
             // Fill recommended if short
             popularRecruitmentItems.forEach((item: any) => {
               if (recMap.size < 6 && !recMap.has(`${item.type}-${item.id}`)) {
@@ -188,23 +192,12 @@ export default function ListView() {
 
             setItems(rawRecruitmentItems);
           } else if (typeParam === 'offer') {
-            const rawOfferItems = projectsWithType.filter((item: any) => Number(item.is_recruitment) === 1 && Number(item.is_private) === 1);
-            if (user?.account_type === 'individual' || !user?.account_type) {
-               setItems(rawOfferItems.filter((i: any) => i.author_id === user?.id));
-            } else if (user?.account_type === 'organization' || user?.account_type === 'corporate' || user?.account_type === 'municipality') {
-               setItems(rawOfferItems.filter((i: any) => {
-                 if (i.author_id === user.id) return false;
-                 try {
-                   const permitted = JSON.parse(i.permitted_users || '[]');
-                   return Array.isArray(permitted) && permitted.includes(user.id);
-                 } catch (e) { return false; }
-               }));
-            } else {
-               setItems([]);
-            }
+            setItems([...projectsWithType, ...ideasWithType].filter(item => Number(item.is_recruitment) === 1 && Number(item.is_private) === 1));
+          } else if (typeParam === 'project-hub') {
+            setItems([...projectsWithType, ...ideasWithType].filter(item => Number(item.is_recruitment) === 1));
           } else if (typeParam === 'buyout') {
              const rawBuyoutProjects = projectsWithType.filter((item: any) => Number(item.is_buyout) === 1);
-             let allBuyouts = [...rawBuyoutProjects];
+             let allBuyouts = [...rawBuyoutProjects, ...ideasWithType.filter(item => Number(item.is_buyout) === 1)];
              allBuyouts = allBuyouts.map(item => {
                const buyoutInfo = buyoutsData.find((b: any) => Number(b.item_id) === Number(item.id) && b.item_type === item.type);
                return { ...item, buyoutInfo };
@@ -233,7 +226,7 @@ export default function ListView() {
 
       fetchData();
     }
-  }, [state?.items, typeParam, qParam, user, language]);
+  }, [state?.items, typeParam, qParam, user, language,revision]);
 
   const [accountFilter, setAccountFilter] = useState<'all' | 'individual' | 'corporate' | 'municipality'>('all');
 
@@ -251,28 +244,28 @@ export default function ListView() {
   });
 
   if (loading) {
-    return <div className="p-8 text-slate-900 dark:text-white min-h-[50vh] flex justify-center items-center">Loading...</div>;
+    return <div className="p-8 text-slate-900  min-h-[50vh] flex justify-center items-center">Loading...</div>;
   }
 
   // Home-like categorized view for Recruitment page
   if (typeParam === 'recruitment' && !state?.items) {
     return (
-      <div className="w-full bg-[#F8FAFC] dark:bg-slate-950 min-h-screen pb-20 text-slate-900 dark:text-slate-200">
+      <div className="w-full bg-[#F8FAFC]  min-h-screen pb-20 text-slate-900 ">
         <div className="max-w-7xl mx-auto px-4 md:px-8 lg:px-12 pt-3 md:pt-4">
           <div className="flex items-center justify-between mb-4 md:mb-5">
-            <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors cursor-pointer">
+            <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-slate-500 hover:text-slate-900   transition-colors cursor-pointer">
               <ChevronLeft className="w-6 h-6" />
-              <span className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white">{language === 'ja' ? '戻る' : 'Back'}</span>
+              <span className="text-xl md:text-2xl font-bold text-slate-900 ">{language === 'ja' ? '戻る' : 'Back'}</span>
             </button>
 
             {user && (
-              <button 
+              <button
                 onClick={() => {
                   const nextShow = !showMyEmas;
                   setShowMyEmas(nextShow);
                   if (nextShow) fetchMyEmas();
                 }}
-                className={`flex items-center gap-2 px-4 py-1.5 rounded-full font-bold text-sm shadow-md transition-all hover:scale-105 relative border cursor-pointer ${showMyEmas ? 'bg-blue-600 border-blue-400 text-white shadow-[0_0_15px_rgba(59,130,246,0.5)]' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white shadow-sm'}`}
+                className={`flex items-center gap-2 px-4 py-1.5 rounded-full font-bold text-sm shadow-md transition-all hover:scale-105 relative border cursor-pointer ${showMyEmas ? 'bg-blue-600 border-blue-400 text-white shadow-[0_0_15px_rgba(59,130,246,0.5)]' : 'bg-white  border-slate-200  text-slate-700  hover:text-slate-900  shadow-sm'}`}
               >
                 <span>Project</span>
                 {(user?.account_type === 'organization' || user?.account_type === 'corporate' || user?.account_type === 'municipality') && unreadRecruitmentCount > 0 && (
@@ -288,15 +281,15 @@ export default function ListView() {
         <div className="max-w-7xl mx-auto px-4 md:px-8 lg:px-12 space-y-4 sm:space-y-5 md:space-y-6">
           {showMyEmas && user ? (
             <div className="space-y-3">
-              <div className="bg-white dark:bg-slate-900/80 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-lg">
+              <div className="bg-white  p-4 rounded-2xl border border-slate-200  shadow-sm ">
                 <div>
-                  <h2 className="text-lg md:text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    <Briefcase className="w-5 h-5 text-blue-500 dark:text-blue-400" />
+                  <h2 className="text-lg md:text-xl font-bold text-slate-900  flex items-center gap-2">
+                    <Briefcase className="w-5 h-5 text-blue-500 " />
                     {user.account_type === 'organization' || user.account_type === 'corporate' || user.account_type === 'municipality'
                       ? (language === 'ja' ? '投稿したProject Vision' : 'My Project Visions')
                       : (language === 'ja' ? 'Ideaを投稿したProject Vision' : 'Submitted Project Visions')}
                   </h2>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  <p className="text-xs text-slate-500  mt-0.5">
                     {user.account_type === 'organization' || user.account_type === 'corporate' || user.account_type === 'municipality'
                       ? (language === 'ja' ? '投稿したProject Visionと届いたIdeaの通知数です。' : 'Project Visions you posted and received Idea notification counts.')
                       : (language === 'ja' ? 'あなたがIdeaを投稿したProject Visionの一覧です。' : 'List of Project Visions where you submitted an Idea.')}
@@ -305,22 +298,22 @@ export default function ListView() {
               </div>
 
               {loadingMyEmas ? (
-                <div className="p-8 text-center text-slate-500 dark:text-slate-400">Loading...</div>
+                <div className="p-8 text-center text-slate-500 ">Loading...</div>
               ) : myEmas.length === 0 ? (
-                <div className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-2xl p-8 text-center shadow-sm">
-                  <p className="text-slate-500 dark:text-slate-400 text-sm">
+                <div className="bg-white  border border-slate-200  rounded-2xl p-8 text-center shadow-sm">
+                  <p className="text-slate-500  text-sm">
                     {user.account_type === 'organization' || user.account_type === 'corporate' || user.account_type === 'municipality'
                       ? (language === 'ja' ? '投稿したProject Visionはまだありません' : 'No Project Visions posted yet.')
                       : (language === 'ja' ? 'Ideaを投稿したProject Visionはまだありません' : 'No Project Visions submitted to yet.')}
                   </p>
                 </div>
               ) : (
-                <IdeaRow 
+                <IdeaRow
                   title={user.account_type === 'organization' || user.account_type === 'corporate' || user.account_type === 'municipality'
                     ? (language === 'ja' ? "投稿済みProject Vision" : "Posted Project Visions")
-                    : (language === 'ja' ? "Idea投稿済みProject Vision" : "Submitted Project Visions")} 
-                  items={myEmas} 
-                  icon={<Briefcase className="w-5 h-5 text-blue-500 dark:text-blue-400" />}
+                    : (language === 'ja' ? "Idea投稿済みProject Vision" : "Submitted Project Visions")}
+                  items={myEmas}
+                  icon={<Briefcase className="w-5 h-5 text-blue-500 " />}
                   onQuoteClick={(item) => setActiveQuotesItem(item)}
                 />
               )}
@@ -328,67 +321,67 @@ export default function ListView() {
           ) : (
             <>
               {/* 1. Recommended for You */}
-              <IdeaRow 
-                title={user ? (language === 'ja' ? "あなたへのおすすめ" : "Recommended for You") : (language === 'ja' ? "おすすめのProject" : "Recommended Projects")} 
-                items={recruitmentSections.recommended} 
-                icon={<Sparkles className="w-5 h-5 md:w-6 md:h-6 text-amber-500 dark:text-yellow-400" />}
+              <IdeaRow
+                title={user ? (language === 'ja' ? "あなたへのおすすめ" : "Recommended for You") : (language === 'ja' ? "おすすめのProject" : "Recommended Projects")}
+                items={recruitmentSections.recommended}
+                icon={<Sparkles className="w-5 h-5 md:w-6 md:h-6 text-amber-500 " />}
                 onQuoteClick={(item) => setActiveQuotesItem(item)}
               />
 
           {/* 2. Region Recommendations (if any) */}
           {recruitmentSections.region.length > 0 && (
-            <IdeaRow 
-              title={language === 'ja' ? "地域内のおすすめ" : "Recommendations in Your Region"} 
-              items={recruitmentSections.region} 
-              icon={<Sparkles className="w-5 h-5 md:w-6 md:h-6 text-indigo-600 dark:text-indigo-400" />}
+            <IdeaRow
+              title={language === 'ja' ? "地域内のおすすめ" : "Recommendations in Your Region"}
+              items={recruitmentSections.region}
+              icon={<Sparkles className="w-5 h-5 md:w-6 md:h-6 text-indigo-600 " />}
               onQuoteClick={(item) => setActiveQuotesItem(item)}
             />
           )}
 
           {/* 3. New Projects */}
-          <IdeaRow 
-            title={language === 'ja' ? "新着のProject" : "New Projects"} 
-            items={recruitmentSections.newItems} 
-            icon={<Users className="w-5 h-5 md:w-6 md:h-6 text-emerald-600 dark:text-emerald-400" />}
+          <IdeaRow
+            title={language === 'ja' ? "新着のProject" : "New Projects"}
+            items={recruitmentSections.newItems}
+            icon={<Users className="w-5 h-5 md:w-6 md:h-6 text-emerald-600 " />}
             onQuoteClick={(item) => setActiveQuotesItem(item)}
           />
 
           {/* 4. Popular Projects */}
           {recruitmentSections.popular.length > 0 && (
-            <IdeaRow 
-              title={language === 'ja' ? "人気のProject" : "Popular Projects"} 
-              items={recruitmentSections.popular} 
-              icon={<Flame className="w-5 h-5 md:w-6 md:h-6 text-orange-500 dark:text-orange-400" />}
+            <IdeaRow
+              title={language === 'ja' ? "人気のProject" : "Popular Projects"}
+              items={recruitmentSections.popular}
+              icon={<Flame className="w-5 h-5 md:w-6 md:h-6 text-orange-500 " />}
               onQuoteClick={(item) => setActiveQuotesItem(item)}
             />
           )}
 
           {/* 5. Proposals (Private Projects) */}
           {recruitmentSections.offers.length > 0 && (
-            <IdeaRow 
-              title={language === 'ja' ? "Proposal" : "Proposals"} 
-              items={recruitmentSections.offers} 
-              icon={<Briefcase className="w-5 h-5 md:w-6 md:h-6 text-pink-500 dark:text-pink-400" />}
+            <IdeaRow
+              title={language === 'ja' ? "Proposal" : "Proposals"}
+              items={recruitmentSections.offers}
+              icon={<Briefcase className="w-5 h-5 md:w-6 md:h-6 text-pink-500 " />}
               onQuoteClick={(item) => setActiveQuotesItem(item)}
             />
           )}
 
           {/* 6. Technology & Innovation */}
           {recruitmentSections.tech.length > 0 && (
-            <IdeaRow 
-              title={language === 'ja' ? "テクノロジーとイノベーション" : "Technology & Innovation"} 
-              items={recruitmentSections.tech} 
-              icon={<Lightbulb className="w-5 h-5 md:w-6 md:h-6 text-blue-600 dark:text-cyan-400" />}
+            <IdeaRow
+              title={language === 'ja' ? "テクノロジーとイノベーション" : "Technology & Innovation"}
+              items={recruitmentSections.tech}
+              icon={<Lightbulb className="w-5 h-5 md:w-6 md:h-6 text-blue-600 " />}
               onQuoteClick={(item) => setActiveQuotesItem(item)}
             />
           )}
 
           {/* 7. Design & Creativity */}
           {recruitmentSections.design.length > 0 && (
-            <IdeaRow 
-              title={language === 'ja' ? "デザインとクリエイティビティ" : "Design & Creativity"} 
-              items={recruitmentSections.design} 
-              icon={<Sparkles className="w-5 h-5 md:w-6 md:h-6 text-purple-600 dark:text-purple-400" />}
+            <IdeaRow
+              title={language === 'ja' ? "デザインとクリエイティビティ" : "Design & Creativity"}
+              items={recruitmentSections.design}
+              icon={<Sparkles className="w-5 h-5 md:w-6 md:h-6 text-purple-600 " />}
               onQuoteClick={(item) => setActiveQuotesItem(item)}
             />
           )}
@@ -398,7 +391,7 @@ export default function ListView() {
 
         {/* Floating Create Button for Recruitment */}
         {(user?.account_type === 'organization' || user?.account_type === 'corporate' || user?.account_type === 'municipality') && !showMyEmas && (
-          <button 
+          <button
             onClick={() => navigate('/create?type=recruitment')}
             className="fixed bottom-24 right-6 md:bottom-28 md:right-12 z-[110] w-14 h-14 md:w-16 md:h-16 bg-blue-500 hover:bg-blue-600 rounded-full flex items-center justify-center text-white shadow-[0_0_30px_rgba(59,130,246,0.5)] transition-transform hover:scale-110"
             title={language === 'ja' ? 'Projectを作成' : 'Create Project'}
@@ -408,9 +401,9 @@ export default function ListView() {
         )}
 
         {activeQuotesItem && (
-          <IdeaQuotesModal 
-            item={activeQuotesItem} 
-            onClose={() => setActiveQuotesItem(null)} 
+          <IdeaQuotesModal
+            item={activeQuotesItem}
+            onClose={() => setActiveQuotesItem(null)}
           />
         )}
       </div>
@@ -418,19 +411,20 @@ export default function ListView() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] dark:bg-slate-950 text-slate-900 dark:text-slate-200">
-      <div className="max-w-3xl mx-auto p-4 py-8">
-        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white mb-8">
+    <div className="min-h-screen bg-[#F8FAFC]  text-slate-900 ">
+      <div className={mode ? "max-w-7xl mx-auto px-4 pb-8 pt-2" : "max-w-3xl mx-auto p-4 py-8"}>
+        {!mode && (
+        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-slate-500 hover:text-slate-900   mb-8">
           <ChevronLeft className="w-6 h-6" />
           <span className="text-xl font-bold">{title}</span>
-        </button>
+        </button>)}
 
         {typeParam === 'buyout' && (
-          <div className="flex gap-2 mb-8 bg-white dark:bg-slate-900 p-1.5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <div className="flex gap-2 mb-8 bg-white  p-1.5 rounded-xl border border-slate-200  shadow-sm">
             <button
               onClick={() => setActiveBuyoutTab('fixed')}
               className={`flex-1 py-2.5 md:py-3 text-sm md:text-base font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${
-                activeBuyoutTab === 'fixed' ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                activeBuyoutTab === 'fixed' ? 'bg-slate-100  text-slate-900  shadow-sm' : 'text-slate-500  hover:text-slate-800  hover:bg-slate-50 '
               }`}
             >
               <ShoppingCart className="w-4 h-4 md:w-5 md:h-5" />
@@ -439,7 +433,7 @@ export default function ListView() {
             <button
               onClick={() => setActiveBuyoutTab('auction')}
               className={`flex-1 py-2.5 md:py-3 text-sm md:text-base font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${
-                activeBuyoutTab === 'auction' ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                activeBuyoutTab === 'auction' ? 'bg-slate-100  text-slate-900  shadow-sm' : 'text-slate-500  hover:text-slate-800  hover:bg-slate-50 '
               }`}
             >
               <Lightbulb className="w-4 h-4 md:w-5 md:h-5" />
@@ -450,7 +444,7 @@ export default function ListView() {
 
         {/* Account Type Filter */}
         <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-1 no-scrollbar">
-          <span className="text-xs font-bold text-slate-400 dark:text-slate-500 shrink-0">絞り込み:</span>
+          <span className="text-xs font-bold text-slate-600  shrink-0">絞り込み:</span>
           {[
             { id: 'all', label: 'すべて', icon: null },
             { id: 'individual', label: '個人', icon: UserIcon },
@@ -472,8 +466,8 @@ export default function ListView() {
                       ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
                       : acc.id === 'individual'
                       ? 'bg-sky-500 text-white border-sky-500 shadow-sm'
-                      : 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-sm'
-                    : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'
+                      : 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                    : 'bg-white  text-slate-600  border-slate-200  hover:bg-slate-50 '
                 }`}
               >
                 {Icon && <Icon className="w-3.5 h-3.5" />}
@@ -484,7 +478,7 @@ export default function ListView() {
         </div>
 
         {(!filteredItems || filteredItems.length === 0) ? (
-          <div className="p-8 text-center text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-900/50 shadow-sm">
+          <div className="p-8 text-center text-slate-500  border border-slate-200  rounded-2xl bg-white  shadow-sm">
             {language === 'ja' ? 'データがありません' : 'No data available'}
           </div>
         ) : (
@@ -497,20 +491,21 @@ export default function ListView() {
                 <Link
                   key={`${item.type}-${item.id}`}
                   to={targetUrl}
-                  className="block bg-white dark:bg-[#0b0f19] border border-slate-200 dark:border-cyan-500/20 hover:border-blue-400 dark:hover:border-cyan-500/50 rounded-2xl overflow-hidden group shadow-sm hover:shadow-md dark:shadow-[0_4px_20px_rgba(0,0,0,0.4)] transition-all hover:scale-[1.01] flex flex-col"
+                  state={{section:typeParam==='buyout'?'store':mode?'project':location.state?.section}}
+                  className="block bg-white  border border-slate-200  hover:border-blue-400  rounded-2xl overflow-hidden group shadow-sm hover:shadow-md  transition-all hover:scale-[1.01] flex flex-col"
                 >
-                  <div className="relative aspect-[16/10] bg-slate-100 dark:bg-slate-900 overflow-hidden">
-                    <img 
-                      src={item.image || undefined} 
-                      alt={item.title} 
+                  <div className="relative aspect-[16/10] bg-slate-100  overflow-hidden">
+                    <img
+                      src={item.image || undefined}
+                      alt={item.title}
                       className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                       referrerPolicy="no-referrer"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 dark:from-[#0b0f19] via-black/20 to-transparent opacity-80"></div>
-                    
+                    <div className="absolute inset-0 bg-gradient-to-t from-white/20  via-black/20 to-transparent opacity-80"></div>
+
                     <div className="absolute top-2 left-2 z-10 flex items-center gap-1.5 flex-wrap">
-                      <span className="px-2 py-0.5 rounded-full bg-blue-600/80 dark:bg-cyan-500/20 backdrop-blur-md border border-blue-400/40 dark:border-cyan-500/40 text-white dark:text-cyan-300 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider shadow-md">
-                        {item.type === 'project' ? 'Vision' : 'Idea'}
+                      <span className="px-2 py-0.5 rounded-full bg-blue-600/80  backdrop-blur-md border border-blue-400/40  text-white  text-[9px] sm:text-[10px] font-bold uppercase tracking-wider shadow-md">
+                        {Number(item.is_recruitment) === 1 ? 'Project' : item.type === 'project' ? 'Vision' : 'Idea'}
                       </span>
                       {item.status === 'completed' && (
                         <span className="px-2 py-0.5 rounded-full bg-emerald-500/90 backdrop-blur-md text-white text-[9px] sm:text-[10px] font-bold shadow-md">
@@ -538,7 +533,7 @@ export default function ListView() {
 
                   <div className="p-2.5 sm:p-3 flex flex-col flex-1 justify-between gap-2">
                     <div>
-                      <h3 className="text-slate-900 dark:text-white font-bold text-xs sm:text-sm md:text-base leading-snug line-clamp-1 group-hover:text-blue-600 dark:group-hover:text-cyan-300 transition-colors mb-1">
+                      <h3 className="text-slate-900  font-bold text-xs sm:text-sm md:text-base leading-snug line-clamp-1 group-hover:text-blue-600  transition-colors mb-1">
                         {item.title}
                       </h3>
 
@@ -550,42 +545,42 @@ export default function ListView() {
 
                       {typeParam === 'buyout' && item.buyoutInfo && (
                         <div className="mt-1 text-[11px] space-y-1">
-                          <div className="font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 inline-block px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-500/20">
+                          <div className="font-bold text-emerald-600  bg-emerald-50  inline-block px-2 py-0.5 rounded-full border border-emerald-200 ">
                             {item.buyoutInfo.applications_count || 0} {language === 'ja' ? '名参加' : 'participants'}
                           </div>
                         </div>
                       )}
                     </div>
 
-                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
-                      <div 
+                    <div className="pt-2 border-t border-slate-100  flex flex-col items-stretch gap-2 text-[11px] text-slate-500 ">
+                      <div
                         onClick={(e) => {
                           e.stopPropagation();
                           navigate(`/profile/${item.author_id}`);
                         }}
-                        className="flex items-center gap-1.5 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer max-w-[65%]"
+                        className="flex items-center gap-1.5 hover:text-slate-900  transition-colors cursor-pointer min-w-0 max-w-full"
                       >
-                        <img 
-                          src={item.author_avatar || undefined} 
-                          alt="" 
-                          className={`w-5 h-5 rounded-full ${getAccountTypeBorderClass(item.author_account_type, 'border-2')} object-cover shrink-0`} 
+                        <img
+                          src={item.author_avatar || undefined}
+                          alt=""
+                          className={`w-5 h-5 rounded-full ${getAccountTypeBorderClass(item.author_account_type, 'border-2')} object-cover shrink-0`}
                         />
                         <span className="font-semibold truncate text-[11px]">{item.author_name}</span>
                         <AccountTypeBadge accountType={item.author_account_type} size="xs" />
                       </div>
 
-                      <div className="flex items-center gap-2 shrink-0 text-[10px] sm:text-[11px]">
+                      <div className="flex flex-wrap items-center justify-between gap-1 text-[10px] sm:text-[11px]">
                         <span className="flex items-center gap-0.5 hover:text-pink-500 transition-colors" title="Likes">
                           <Heart className="w-3.5 h-3.5 text-pink-500" />
-                          <span className="font-medium text-slate-700 dark:text-slate-300">{item.likes_count || 0}</span>
+                          <span className="font-medium text-slate-700 ">{item.likes_count || 0}</span>
                         </span>
-                        <span className="flex items-center gap-0.5 hover:text-blue-600 dark:hover:text-cyan-400 transition-colors" title="Comments">
-                          <MessageSquare className="w-3.5 h-3.5 text-blue-500 dark:text-cyan-400" />
-                          <span className="font-medium text-slate-700 dark:text-slate-300">{item.comments_count || 0}</span>
+                        <span className="flex items-center gap-0.5 hover:text-blue-600  transition-colors" title="Comments">
+                          <MessageSquare className="w-3.5 h-3.5 text-blue-500 " />
+                          <span className="font-medium text-slate-700 ">{item.comments_count || 0}</span>
                         </span>
                         <span className="flex items-center gap-1 hover:text-emerald-500 transition-colors" title="Archives">
                           <Bookmark className="w-4 h-4 text-emerald-500" />
-                          <span className="font-medium text-slate-700 dark:text-slate-300">{item.archives_count || 0}</span>
+                          <span className="font-medium text-slate-700 ">{item.archives_count || 0}</span>
                         </span>
                       </div>
                     </div>
@@ -596,10 +591,10 @@ export default function ListView() {
           </div>
         )}
       </div>
-      
+
       {/* Floating Create Button for Buyouts */}
       {typeParam === 'buyout' && (
-        <button 
+        <button
           onClick={() => setShowBuyoutPost(true)}
           className="fixed bottom-24 right-6 md:bottom-28 md:right-12 z-[110] w-14 h-14 md:w-16 md:h-16 bg-emerald-500 hover:bg-emerald-600 rounded-full flex items-center justify-center text-white shadow-[0_0_30px_rgba(16,185,129,0.5)] transition-transform hover:scale-110"
           title={language === 'ja' ? 'バイアウトに投稿' : 'Post to Buyout'}
@@ -610,7 +605,7 @@ export default function ListView() {
 
       {/* Floating Create Button for Offers */}
       {typeParam === 'offer' && (user?.account_type === 'individual' || !user?.account_type) && (
-        <button 
+        <button
           onClick={() => setShowOfferSearch(true)}
           className="fixed bottom-24 right-6 md:bottom-28 md:right-12 z-[110] w-14 h-14 md:w-16 md:h-16 bg-blue-500 hover:bg-blue-600 rounded-full flex items-center justify-center text-white shadow-[0_0_30px_rgba(59,130,246,0.5)] transition-transform hover:scale-110"
           title={language === 'ja' ? 'Proposalを作成' : 'Create Proposal'}
@@ -621,7 +616,7 @@ export default function ListView() {
 
       {/* Floating Create Button for Recruitment */}
       {typeParam === 'recruitment' && (user?.account_type === 'organization' || user?.account_type === 'corporate' || user?.account_type === 'municipality') && (
-        <button 
+        <button
           onClick={() => navigate('/create?type=recruitment')}
           className="fixed bottom-24 right-6 md:bottom-28 md:right-12 z-[110] w-14 h-14 md:w-16 md:h-16 bg-blue-500 hover:bg-blue-600 rounded-full flex items-center justify-center text-white shadow-[0_0_30px_rgba(59,130,246,0.5)] transition-transform hover:scale-110"
           title={language === 'ja' ? 'Projectを作成' : 'Create Project'}

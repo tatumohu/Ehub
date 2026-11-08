@@ -220,21 +220,17 @@ export default function Notifications() {
                           <span className="text-slate-700 dark:text-slate-300 mt-2 block p-3 bg-slate-50/80 dark:bg-slate-950/60 backdrop-blur-md rounded-xl border border-slate-200/80 dark:border-cyan-500/20">
                             <strong>{notif.message || '契約書の内容を確認してください。'}</strong>
                             <br/>
-                            <button
+                            {notif.item_type !== 'contract' && <button
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (notif.item_type === 'contract') {
-                                  navigate('/contracts');
-                                } else {
-                                  setTargetScoutId(notif.item_id);
-                                  setShowScoutInboxModal(true);
-                                }
+                                setTargetScoutId(notif.item_id);
+                                setShowScoutInboxModal(true);
                               }}
                               className="text-indigo-600 dark:text-indigo-400 hover:underline mt-2 inline-block text-xs font-semibold cursor-pointer text-left"
                             >
                               {language === 'ja' ? '対象契約書・スカウト画面を開く' : 'Open Contract / Scout Detail'}
-                            </button>
+                            </button>}
                           </span>
                         </>
                       ) : notif.type === 'contract_updated' || notif.type === 'scout_contract_updated' ? (
@@ -244,21 +240,17 @@ export default function Notifications() {
                           <span className="text-slate-700 dark:text-slate-300 mt-2 block p-3 bg-slate-50/80 dark:bg-slate-950/60 backdrop-blur-md rounded-xl border border-slate-200/80 dark:border-cyan-500/20">
                             <strong>{notif.message || '業務委託契約案が更新されました。内容を再確認してください。'}</strong>
                             <br/>
-                            <button
+                            {notif.item_type !== 'contract' && <button
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (notif.item_type === 'contract') {
-                                  navigate('/contracts');
-                                } else {
-                                  setTargetScoutId(notif.item_id);
-                                  setShowScoutInboxModal(true);
-                                }
+                                setTargetScoutId(notif.item_id);
+                                setShowScoutInboxModal(true);
                               }}
                               className="text-indigo-600 dark:text-indigo-400 hover:underline mt-2 inline-block text-xs font-semibold cursor-pointer text-left"
                             >
                               {language === 'ja' ? '更新内容を再確認する' : 'Review Updated Contract'}
-                            </button>
+                            </button>}
                           </span>
                         </>
                       ) : notif.type === 'nda_acceptance_required' ? (

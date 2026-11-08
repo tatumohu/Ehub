@@ -38,33 +38,33 @@ export default function PermittedUsersModal({ permittedUserIds, onClose }: Permi
   }, [permittedUserIds]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <div 
-        className="w-full max-w-sm bg-slate-900 border border-slate-700/50 rounded-2xl p-5 shadow-2xl relative"
+    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div
+        data-ui-dialog="project-permitted" role="dialog" aria-modal="true" className="w-full max-w-sm bg-white border border-slate-200 rounded-2xl p-5 shadow-2xl relative max-h-[calc(100dvh-2rem)] overflow-y-auto"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between font-bold mb-4">
-          <h3 className="text-white text-lg">Permitted Users</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
+          <h3 className="text-slate-900 text-lg">Permitted Users</h3>
+          <button aria-label="Close permitted" onClick={onClose} className="text-slate-600 hover:text-slate-900 transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {loading ? (
-          <div className="text-center py-6 text-slate-400">Loading...</div>
+          <div className="text-center py-6 text-slate-600">Loading...</div>
         ) : users.length === 0 ? (
-          <div className="text-center py-6 text-slate-400">No users found.</div>
+          <div className="text-center py-6 text-slate-600">No users found.</div>
         ) : (
           <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
             {users.map(u => (
-              <Link 
+              <Link
                 key={u.id}
                 to={`/profile/${u.id}`}
-                className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-800 transition-colors"
+                className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors"
                 onClick={onClose}
               >
                 <img src={u.avatar || undefined} alt={u.username} className={`w-10 h-10 rounded-full object-cover ${getAccountTypeBorderClass(u.account_type, 'border-2')}`} />
-                <span className="font-medium text-white">{u.username}</span>
+                <span className="font-medium text-slate-900">{u.username}</span>
               </Link>
             ))}
           </div>
@@ -72,7 +72,7 @@ export default function PermittedUsersModal({ permittedUserIds, onClose }: Permi
       </div>
 
       {scoutTargetId && scoutTargetName && (
-        <ScoutMessageModal 
+        <ScoutMessageModal
           onClose={() => {
             setScoutTargetId(null);
             setScoutTargetName(null);

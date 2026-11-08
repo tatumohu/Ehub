@@ -27,9 +27,9 @@ interface ScoutMessageModalProps {
   ideaDescription?: string;
 }
 
-export default function ScoutMessageModal({ 
-  onClose, 
-  targetUserIds, 
+export default function ScoutMessageModal({
+  onClose,
+  targetUserIds,
   targetUserNames,
   targetItemType,
   targetItemId,
@@ -48,7 +48,7 @@ export default function ScoutMessageModal({
   const { user, language } = useAppContext();
   const [step, setStep] = useState<1 | 2>(1);
   const [isSending, setIsSending] = useState(false);
-  
+
   // Form fields
   const [projectId, setProjectId] = useState<string>(
     sourceType === 'direct' && targetItemType === 'project' ? targetItemId?.toString() || '' : ''
@@ -81,17 +81,17 @@ export default function ScoutMessageModal({
   const [outsourcingContractId, setOutsourcingContractId] = useState<number | undefined>(undefined);
 
   const [activeContractModal, setActiveContractModal] = useState<{ type: 'nda' | 'outsourcing'; tab: 'templates' | 'ai' } | null>(null);
-  
+
   // Modals & Duplicate Checks
   const [duplicateScout, setDuplicateScout] = useState<any | null>(null);
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   const [showPlanUpgradeModal, setShowPlanUpgradeModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
-  
+
   // Data
   const [orgProjects, setOrgProjects] = useState<any[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
-  
+
   useEffect(() => {
     if (user?.id) {
       fetch(`/api/projects?user_id=${user.id}`)
@@ -101,7 +101,7 @@ export default function ScoutMessageModal({
           setOrgProjects(orgP);
         });
     }
-    
+
     // Auto fill based on pathway
     if (sourceType === 'recruitment') {
       setTitle(language === 'ja' ? `【Project】「${ideaTitle || targetItemTitle || 'Idea'}」に関するスカウト` : `Scout for Idea: ${ideaTitle || targetItemTitle || ''}`);
@@ -258,7 +258,7 @@ export default function ScoutMessageModal({
 
       const res = await fetch('/api/scouts', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'x-user-id': user?.id.toString() || ''
         },
@@ -319,37 +319,37 @@ export default function ScoutMessageModal({
   if (!user || user.account_type !== 'organization') return null;
 
   const modalContent = (
-    <div className="fixed inset-0 z-[120] bg-black/75 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-      <div className="bg-slate-900 rounded-3xl w-full max-w-4xl flex flex-col border border-slate-800 shadow-2xl relative max-h-[92vh]">
-        
+    <div className="fixed inset-0 z-[300] bg-black/75 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+      <div data-ui-dialog="project-scout" role="dialog" aria-modal="true" className="bg-white rounded-3xl w-full max-w-4xl flex flex-col border border-slate-200 shadow-2xl relative max-h-[92vh]">
+
         {/* Header */}
-        <div className="sticky top-0 z-10 p-6 border-b border-slate-800 bg-slate-900/95 backdrop-blur-md flex justify-between items-center rounded-t-3xl shrink-0">
+        <div className="sticky top-0 z-10 p-6 border-b border-slate-200 bg-white/95 backdrop-blur-md flex justify-between items-center rounded-t-3xl shrink-0">
           <div>
             <div className="flex items-center gap-2 mb-1">
               {sourceType === 'recruitment' && (
-                <span className="px-3 py-1 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-xs font-bold rounded-full">
+                <span className="px-3 py-1 bg-indigo-500/10 text-indigo-600 border border-indigo-500/20 text-xs font-bold rounded-full">
                   {language === 'ja' ? 'Project経由' : 'Via Project'}
                 </span>
               )}
               {sourceType === 'offer' && (
-                <span className="px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold rounded-full">
+                <span className="px-3 py-1 bg-emerald-500/10 text-emerald-700 border border-emerald-500/20 text-xs font-bold rounded-full">
                   {language === 'ja' ? 'Proposal経由' : 'Via Proposal'}
                 </span>
               )}
               {sourceType === 'direct' && (
-                <span className="px-3 py-1 bg-purple-500/10 text-purple-400 border border-purple-500/20 text-xs font-bold rounded-full">
+                <span className="px-3 py-1 bg-purple-500/10 text-purple-700 border border-purple-500/20 text-xs font-bold rounded-full">
                   {language === 'ja' ? '指名スカウト' : 'Direct Scout'}
                 </span>
               )}
             </div>
-            <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-              <Send className="w-6 h-6 text-indigo-400" />
-              {step === 1 
-                ? (language === 'ja' ? 'スカウトの作成' : 'Create Scout') 
+            <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+              <Send className="w-6 h-6 text-indigo-600" />
+              {step === 1
+                ? (language === 'ja' ? 'スカウトの作成' : 'Create Scout')
                 : (language === 'ja' ? 'スカウト内容の確認' : 'Confirm Scout')}
             </h2>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-full transition-colors text-slate-400 hover:text-white">
+          <button aria-label="Close scout" onClick={onClose} className="p-2 hover:bg-slate-50 rounded-full transition-colors text-slate-600 hover:text-slate-900">
             <X className="w-6 h-6" />
           </button>
         </div>
@@ -357,18 +357,18 @@ export default function ScoutMessageModal({
         {/* Duplicate Warning Modal Inside */}
         {showDuplicateModal && duplicateScout && (
           <div className="p-6 bg-amber-500/10 border-b border-amber-500/20 space-y-3 shrink-0">
-            <div className="flex items-center gap-3 text-amber-400">
+            <div className="flex items-center gap-3 text-amber-700">
               <AlertTriangle className="w-6 h-6 shrink-0" />
               <div className="font-bold text-sm">
                 {language === 'ja' ? 'このユーザーには、同じ内容のスカウトがすでに送信されています。' : 'A scout with the same details has already been sent to this user.'}
               </div>
             </div>
             <div className="flex justify-end gap-3">
-              <button 
+              <button
                 onClick={() => {
                   setShowDetailModal(true);
                 }}
-                className="px-4 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold text-xs rounded-xl border border-amber-500/30 transition-colors"
+                className="px-4 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-700 font-bold text-xs rounded-xl border border-amber-500/30 transition-colors"
               >
                 {language === 'ja' ? '既存スカウトの詳細を見る' : 'View Existing Scout Details'}
               </button>
@@ -379,27 +379,27 @@ export default function ScoutMessageModal({
         <div className="p-6 space-y-6 overflow-y-auto flex-1">
           {/* Pathway Guidance Display */}
           {sourceType === 'recruitment' && (
-            <div className="p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl space-y-2 text-sm text-indigo-200">
-              <div className="font-bold text-indigo-300 flex items-center gap-2">
+            <div className="p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl space-y-2 text-sm text-indigo-800">
+              <div className="font-bold text-indigo-700 flex items-center gap-2">
                 <Sparkles className="w-4 h-4" />
                 {language === 'ja' ? 'このIdeaの投稿者にスカウトを送ります' : 'Sending scout to this Idea author'}
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                <div><span className="text-slate-400">{language === 'ja' ? '選択したIdea:' : 'Selected Idea:'}</span> <strong className="text-white">{ideaTitle || targetItemTitle}</strong></div>
-                <div><span className="text-slate-400">{language === 'ja' ? '投稿者:' : 'Author:'}</span> <strong className="text-white">{targetUserNames?.join(', ')}さん</strong></div>
+                <div><span className="text-slate-600">{language === 'ja' ? '選択したIdea:' : 'Selected Idea:'}</span> <strong className="text-slate-900">{ideaTitle || targetItemTitle}</strong></div>
+                <div><span className="text-slate-600">{language === 'ja' ? '投稿者:' : 'Author:'}</span> <strong className="text-slate-900">{targetUserNames?.join(', ')}さん</strong></div>
               </div>
             </div>
           )}
 
           {sourceType === 'offer' && (
-            <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl space-y-2 text-sm text-emerald-200">
-              <div className="font-bold text-emerald-300 flex items-center gap-2">
+            <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl space-y-2 text-sm text-emerald-800">
+              <div className="font-bold text-emerald-700 flex items-center gap-2">
                 <Sparkles className="w-4 h-4" />
                 {language === 'ja' ? 'このProposalの投稿者にスカウトを送ります' : 'Sending scout to this Proposal author'}
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                <div><span className="text-slate-400">{language === 'ja' ? '提案されたVision:' : 'Proposed Vision:'}</span> <strong className="text-white">{offerTitle || targetItemTitle}</strong></div>
-                <div><span className="text-slate-400">{language === 'ja' ? '投稿者:' : 'Author:'}</span> <strong className="text-white">{targetUserNames?.join(', ')}さん</strong></div>
+                <div><span className="text-slate-600">{language === 'ja' ? '提案されたVision:' : 'Proposed Vision:'}</span> <strong className="text-slate-900">{offerTitle || targetItemTitle}</strong></div>
+                <div><span className="text-slate-600">{language === 'ja' ? '投稿者:' : 'Author:'}</span> <strong className="text-slate-900">{targetUserNames?.join(', ')}さん</strong></div>
               </div>
             </div>
           )}
@@ -408,19 +408,19 @@ export default function ScoutMessageModal({
             <div className="space-y-6">
               {/* Target User */}
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">{language === 'ja' ? 'スカウト対象者' : 'Target Users'}</label>
-                <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 text-white font-bold">
+                <label className="block text-sm font-medium text-slate-600 mb-2">{language === 'ja' ? 'スカウト対象者' : 'Target Users'}</label>
+                <div className="bg-slate-50/50 p-4 rounded-xl border border-slate-200 text-slate-900 font-bold">
                   {targetUserNames?.join(', ')}
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-2">{language === 'ja' ? '想定・紐付けるプロジェクト' : 'Target Project'}</label>
-                  <select 
+                  <label className="block text-sm font-medium text-slate-600 mb-2">{language === 'ja' ? '想定・紐付けるプロジェクト' : 'Target Project'}</label>
+                  <select
                     value={projectId}
                     onChange={e => setProjectId(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-indigo-500 transition-colors"
+                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-4 py-3 focus:outline-none focus:border-indigo-500 transition-colors"
                   >
                     <option value="">{language === 'ja' ? '選択してください（任意）' : 'Select Project (Optional)'}</option>
                     {orgProjects.map(p => (
@@ -429,55 +429,55 @@ export default function ScoutMessageModal({
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-2">{language === 'ja' ? '依頼したい役割' : 'Requested Role'} <span className="text-rose-500">*</span></label>
-                  <input 
-                    type="text" 
+                  <label className="block text-sm font-medium text-slate-600 mb-2">{language === 'ja' ? '依頼したい役割' : 'Requested Role'} <span className="text-rose-500">*</span></label>
+                  <input
+                    type="text"
                     value={role}
                     onChange={e => setRole(e.target.value)}
                     placeholder={language === 'ja' ? '例：プロジェクトリーダー、エンジニア' : 'e.g. Project Leader'}
-                    className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-indigo-500 transition-colors"
+                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-4 py-3 focus:outline-none focus:border-indigo-500 transition-colors"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">{language === 'ja' ? 'スカウト件名' : 'Scout Title'} <span className="text-rose-500">*</span></label>
-                <input 
-                  type="text" 
+                <label className="block text-sm font-medium text-slate-600 mb-2">{language === 'ja' ? 'スカウト件名' : 'Scout Title'} <span className="text-rose-500">*</span></label>
+                <input
+                  type="text"
                   value={title}
                   onChange={e => setTitle(e.target.value)}
                   placeholder={language === 'ja' ? '例：プロジェクト参画に関するご提案' : 'e.g. Invitation to project'}
-                  className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-indigo-500 transition-colors"
+                  className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-4 py-3 focus:outline-none focus:border-indigo-500 transition-colors"
                 />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-2">{language === 'ja' ? '想定期間' : 'Expected Period'}</label>
-                  <input 
-                    type="text" 
+                  <label className="block text-sm font-medium text-slate-600 mb-2">{language === 'ja' ? '想定期間' : 'Expected Period'}</label>
+                  <input
+                    type="text"
                     value={period}
                     onChange={e => setPeriod(e.target.value)}
                     placeholder={language === 'ja' ? '例：2026年10月〜' : 'e.g. Oct 2026 - TBD'}
-                    className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-indigo-500 transition-colors"
+                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-4 py-3 focus:outline-none focus:border-indigo-500 transition-colors"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-2">{language === 'ja' ? '活動場所' : 'Location'}</label>
-                  <input 
-                    type="text" 
+                  <label className="block text-sm font-medium text-slate-600 mb-2">{language === 'ja' ? '活動場所' : 'Location'}</label>
+                  <input
+                    type="text"
                     value={location}
                     onChange={e => setLocation(e.target.value)}
                     placeholder={language === 'ja' ? '例：フルリモート、東京都内' : 'e.g. Remote, Tokyo'}
-                    className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-indigo-500 transition-colors"
+                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-4 py-3 focus:outline-none focus:border-indigo-500 transition-colors"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-2">{language === 'ja' ? '報酬形態' : 'Reward Type'}</label>
-                  <select 
+                  <label className="block text-sm font-medium text-slate-600 mb-2">{language === 'ja' ? '報酬形態' : 'Reward Type'}</label>
+                  <select
                     value={rewardType}
                     onChange={e => setRewardType(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-indigo-500 transition-colors"
+                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-4 py-3 focus:outline-none focus:border-indigo-500 transition-colors"
                   >
                     <option value="">{language === 'ja' ? '選択してください' : 'Select'}</option>
                     <option value="固定報酬">{language === 'ja' ? '固定報酬' : 'Fixed'}</option>
@@ -487,11 +487,11 @@ export default function ScoutMessageModal({
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-2">{language === 'ja' ? 'NDA締結' : 'NDA Required'}</label>
-                  <select 
+                  <label className="block text-sm font-medium text-slate-600 mb-2">{language === 'ja' ? 'NDA締結' : 'NDA Required'}</label>
+                  <select
                     value={nda}
                     onChange={e => setNda(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-indigo-500 transition-colors"
+                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-4 py-3 focus:outline-none focus:border-indigo-500 transition-colors"
                   >
                     <option value="">{language === 'ja' ? '選択してください' : 'Select'}</option>
                     <option value="必要">{language === 'ja' ? '必要' : 'Yes'}</option>
@@ -502,53 +502,53 @@ export default function ScoutMessageModal({
 
               <div>
                 <div className="flex justify-between items-end mb-2">
-                  <label className="block text-sm font-medium text-slate-400">{language === 'ja' ? 'スカウトメッセージ' : 'Message'} <span className="text-rose-500">*</span></label>
+                  <label className="block text-sm font-medium text-slate-600">{language === 'ja' ? 'スカウトメッセージ' : 'Message'} <span className="text-rose-500">*</span></label>
                   {user.org_plan === 'enterprise' && (
-                    <button 
+                    <button
                       onClick={handleGenerateAI}
                       disabled={isGenerating || !role}
-                      className="text-xs font-bold bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30 px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-colors"
+                      className="text-xs font-bold bg-indigo-500/20 text-indigo-600 hover:bg-indigo-500/30 px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-colors"
                     >
                       {isGenerating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Bot className="w-3 h-3" />}
                       {language === 'ja' ? 'AIで下書き作成' : 'AI Draft'}
                     </button>
                   )}
                 </div>
-                <textarea 
+                <textarea
                   value={message}
                   onChange={e => setMessage(e.target.value)}
                   placeholder={language === 'ja' ? '興味を持った理由や具体的な協議内容について記載してください...' : 'Write your message...'}
-                  className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl p-4 focus:outline-none focus:border-indigo-500 transition-colors h-40 resize-none text-sm"
+                  className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl p-4 focus:outline-none focus:border-indigo-500 transition-colors h-40 resize-none text-sm"
                 />
               </div>
 
               {/* 秘密保持契約 (NDA) セクション */}
-              <div className="p-5 bg-slate-950/70 border border-slate-800 rounded-2xl space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
+              <div className="p-5 bg-white/70 border border-slate-200 rounded-2xl space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
                   <div className="flex items-center gap-2">
-                    <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                    <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-700 border border-amber-500/20">
                       <Lock className="w-4 h-4" />
                     </div>
                     <div>
-                      <h4 className="font-bold text-white text-sm sm:text-base">秘密保持契約 (NDA)</h4>
-                      <p className="text-[11px] text-slate-400">事前選択および即時本文入力・AI自動生成可能</p>
+                      <h4 className="font-bold text-slate-900 text-sm sm:text-base">秘密保持契約 (NDA)</h4>
+                      <p className="text-[11px] text-slate-600">事前選択および即時本文入力・AI自動生成可能</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => setActiveContractModal({ type: 'nda', tab: 'templates' })}
-                      className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 border border-slate-700 shadow-sm"
+                      className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 border border-slate-200 shadow-sm"
                     >
-                      <FileText className="w-3.5 h-3.5 text-indigo-400" />
+                      <FileText className="w-3.5 h-3.5 text-indigo-600" />
                       保存済み文章
                     </button>
                     <button
                       type="button"
                       onClick={() => setActiveContractModal({ type: 'nda', tab: 'ai' })}
-                      className="px-3 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 border border-indigo-500/30 shadow-sm"
+                      className="px-3 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-700 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 border border-indigo-500/30 shadow-sm"
                     >
-                      <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                      <Sparkles className="w-3.5 h-3.5 text-amber-700" />
                       AIで自動生成
                     </button>
                   </div>
@@ -556,36 +556,36 @@ export default function ScoutMessageModal({
 
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1">契約書タイトル</label>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">契約書タイトル</label>
                     <input
                       type="text"
                       value={ndaTitle}
                       onChange={e => setNdaTitle(e.target.value)}
                       placeholder="例: 秘密保持契約書 (NDA)"
-                      className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-indigo-500"
+                      className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-indigo-500"
                     />
                   </div>
 
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <label className="block text-xs font-bold text-slate-300">契約文章（直接入力・編集可能）</label>
-                      <span className="text-[11px] text-slate-400 font-mono">現在の文字数: <strong className="text-white">{ndaBody.length}</strong> 文字</span>
+                      <label className="block text-xs font-bold text-slate-700">契約文章（直接入力・編集可能）</label>
+                      <span className="text-[11px] text-slate-600 font-mono">現在の文字数: <strong className="text-slate-900">{ndaBody.length}</strong> 文字</span>
                     </div>
                     <textarea
                       value={ndaBody}
                       onChange={e => setNdaBody(e.target.value)}
                       rows={7}
                       placeholder="秘密保持契約の本文を入力してください..."
-                      className="w-full bg-slate-800 border border-slate-700 text-white font-mono rounded-xl p-3 text-xs leading-relaxed focus:outline-none focus:border-indigo-500"
+                      className="w-full bg-slate-50 border border-slate-200 text-slate-900 font-mono rounded-xl p-3 text-xs leading-relaxed focus:outline-none focus:border-indigo-500"
                     />
                   </div>
 
-                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-800/80">
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-200/80">
                     <div className="flex items-center gap-3">
                       <button
                         type="button"
                         onClick={() => setNdaPreviewOpen(!ndaPreviewOpen)}
-                        className="text-xs text-indigo-400 hover:text-indigo-300 font-bold flex items-center gap-1"
+                        className="text-xs text-indigo-600 hover:text-indigo-700 font-bold flex items-center gap-1"
                       >
                         {ndaPreviewOpen ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                         {ndaPreviewOpen ? 'プレビューを非表示' : 'プレビューを表示'}
@@ -593,13 +593,13 @@ export default function ScoutMessageModal({
                       <button
                         type="button"
                         onClick={() => handleSaveAsTemplate('nda')}
-                        className="text-xs text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 border border-slate-700"
+                        className="text-xs text-slate-700 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 border border-slate-200"
                       >
-                        <BookmarkPlus className="w-3.5 h-3.5 text-amber-400" />
+                        <BookmarkPlus className="w-3.5 h-3.5 text-amber-700" />
                         テンプレートとして保存
                       </button>
                       {ndaSaveMessage && (
-                        <span className="text-xs text-emerald-400 font-bold flex items-center gap-1">
+                        <span className="text-xs text-emerald-700 font-bold flex items-center gap-1">
                           <Check className="w-3.5 h-3.5" /> {ndaSaveMessage}
                         </span>
                       )}
@@ -607,23 +607,23 @@ export default function ScoutMessageModal({
                   </div>
 
                   {ndaPreviewOpen && (
-                    <div className="p-3.5 bg-slate-900 border border-slate-800 rounded-xl space-y-2">
-                      <span className="font-bold text-xs text-amber-300">【プレビュー】{ndaTitle}</span>
-                      <pre className="text-xs text-slate-300 whitespace-pre-wrap font-mono leading-relaxed max-h-40 overflow-y-auto p-2 bg-slate-950 rounded border border-slate-800">
+                    <div className="p-3.5 bg-white border border-slate-200 rounded-xl space-y-2">
+                      <span className="font-bold text-xs text-amber-700">【プレビュー】{ndaTitle}</span>
+                      <pre className="text-xs text-slate-700 whitespace-pre-wrap font-mono leading-relaxed max-h-40 overflow-y-auto p-2 bg-white rounded border border-slate-200">
                         {ndaBody}
                       </pre>
                     </div>
                   )}
 
-                  <div className="space-y-2 pt-2 border-t border-slate-800/60">
+                  <div className="space-y-2 pt-2 border-t border-slate-200/60">
                     <label className="flex items-center gap-2.5 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={ndaAttach}
                         onChange={e => setNdaAttach(e.target.checked)}
-                        className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 bg-slate-800 border-slate-700"
+                        className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 bg-slate-50 border-slate-200"
                       />
-                      <span className="text-xs text-slate-200 font-bold">このスカウトに秘密保持契約書を添付する</span>
+                      <span className="text-xs text-slate-700 font-bold">このスカウトに秘密保持契約書を添付する</span>
                     </label>
 
                     <label className="flex items-center gap-2.5 cursor-pointer pl-6">
@@ -632,9 +632,9 @@ export default function ScoutMessageModal({
                         checked={ndaMandatory}
                         onChange={e => setNdaMandatory(e.target.checked)}
                         disabled={!ndaAttach}
-                        className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 bg-slate-800 border-slate-700 disabled:opacity-50"
+                        className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 bg-slate-50 border-slate-200 disabled:opacity-50"
                       />
-                      <span className={`text-xs ${ndaAttach ? 'text-slate-300' : 'text-slate-500'}`}>
+                      <span className={`text-xs ${ndaAttach ? 'text-slate-700' : 'text-slate-500'}`}>
                         スカウト承諾（または条件協議開始）前の電子同意を必須にする設定
                       </span>
                     </label>
@@ -643,32 +643,32 @@ export default function ScoutMessageModal({
               </div>
 
               {/* 業務委託契約 セクション */}
-              <div className="p-5 bg-slate-950/70 border border-slate-800 rounded-2xl space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
+              <div className="p-5 bg-white/70 border border-slate-200 rounded-2xl space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
                   <div className="flex items-center gap-2">
-                    <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-700 border border-emerald-500/20">
                       <FileCode className="w-4 h-4" />
                     </div>
                     <div>
-                      <h4 className="font-bold text-white text-sm sm:text-base">業務委託契約</h4>
-                      <p className="text-[11px] text-slate-400">事前選択および即時本文入力・AI自動生成可能（※契約案扱い）</p>
+                      <h4 className="font-bold text-slate-900 text-sm sm:text-base">業務委託契約</h4>
+                      <p className="text-[11px] text-slate-600">事前選択および即時本文入力・AI自動生成可能（※契約案扱い）</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => setActiveContractModal({ type: 'outsourcing', tab: 'templates' })}
-                      className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 border border-slate-700 shadow-sm"
+                      className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 border border-slate-200 shadow-sm"
                     >
-                      <FileText className="w-3.5 h-3.5 text-indigo-400" />
+                      <FileText className="w-3.5 h-3.5 text-indigo-600" />
                       保存済み文章
                     </button>
                     <button
                       type="button"
                       onClick={() => setActiveContractModal({ type: 'outsourcing', tab: 'ai' })}
-                      className="px-3 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 border border-indigo-500/30 shadow-sm"
+                      className="px-3 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-700 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 border border-indigo-500/30 shadow-sm"
                     >
-                      <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                      <Sparkles className="w-3.5 h-3.5 text-amber-700" />
                       AIで自動生成
                     </button>
                   </div>
@@ -676,36 +676,36 @@ export default function ScoutMessageModal({
 
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1">契約書タイトル</label>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">契約書タイトル</label>
                     <input
                       type="text"
                       value={outsourcingTitle}
                       onChange={e => setOutsourcingTitle(e.target.value)}
                       placeholder="例: 業務委託契約書 (契約案)"
-                      className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-indigo-500"
+                      className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-indigo-500"
                     />
                   </div>
 
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <label className="block text-xs font-bold text-slate-300">契約文章（直接入力・編集可能）</label>
-                      <span className="text-[11px] text-slate-400 font-mono">現在の文字数: <strong className="text-white">{outsourcingBody.length}</strong> 文字</span>
+                      <label className="block text-xs font-bold text-slate-700">契約文章（直接入力・編集可能）</label>
+                      <span className="text-[11px] text-slate-600 font-mono">現在の文字数: <strong className="text-slate-900">{outsourcingBody.length}</strong> 文字</span>
                     </div>
                     <textarea
                       value={outsourcingBody}
                       onChange={e => setOutsourcingBody(e.target.value)}
                       rows={7}
                       placeholder="業務委託契約の本文を入力してください..."
-                      className="w-full bg-slate-800 border border-slate-700 text-white font-mono rounded-xl p-3 text-xs leading-relaxed focus:outline-none focus:border-indigo-500"
+                      className="w-full bg-slate-50 border border-slate-200 text-slate-900 font-mono rounded-xl p-3 text-xs leading-relaxed focus:outline-none focus:border-indigo-500"
                     />
                   </div>
 
-                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-800/80">
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-200/80">
                     <div className="flex items-center gap-3">
                       <button
                         type="button"
                         onClick={() => setOutsourcingPreviewOpen(!outsourcingPreviewOpen)}
-                        className="text-xs text-indigo-400 hover:text-indigo-300 font-bold flex items-center gap-1"
+                        className="text-xs text-indigo-600 hover:text-indigo-700 font-bold flex items-center gap-1"
                       >
                         {outsourcingPreviewOpen ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                         {outsourcingPreviewOpen ? 'プレビューを非表示' : 'プレビューを表示'}
@@ -713,13 +713,13 @@ export default function ScoutMessageModal({
                       <button
                         type="button"
                         onClick={() => handleSaveAsTemplate('outsourcing')}
-                        className="text-xs text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 border border-slate-700"
+                        className="text-xs text-slate-700 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 border border-slate-200"
                       >
-                        <BookmarkPlus className="w-3.5 h-3.5 text-emerald-400" />
+                        <BookmarkPlus className="w-3.5 h-3.5 text-emerald-700" />
                         テンプレートとして保存
                       </button>
                       {outsourcingSaveMessage && (
-                        <span className="text-xs text-emerald-400 font-bold flex items-center gap-1">
+                        <span className="text-xs text-emerald-700 font-bold flex items-center gap-1">
                           <Check className="w-3.5 h-3.5" /> {outsourcingSaveMessage}
                         </span>
                       )}
@@ -727,23 +727,23 @@ export default function ScoutMessageModal({
                   </div>
 
                   {outsourcingPreviewOpen && (
-                    <div className="p-3.5 bg-slate-900 border border-slate-800 rounded-xl space-y-2">
-                      <span className="font-bold text-xs text-emerald-300">【プレビュー】{outsourcingTitle}</span>
-                      <pre className="text-xs text-slate-300 whitespace-pre-wrap font-mono leading-relaxed max-h-40 overflow-y-auto p-2 bg-slate-950 rounded border border-slate-800">
+                    <div className="p-3.5 bg-white border border-slate-200 rounded-xl space-y-2">
+                      <span className="font-bold text-xs text-emerald-700">【プレビュー】{outsourcingTitle}</span>
+                      <pre className="text-xs text-slate-700 whitespace-pre-wrap font-mono leading-relaxed max-h-40 overflow-y-auto p-2 bg-white rounded border border-slate-200">
                         {outsourcingBody}
                       </pre>
                     </div>
                   )}
 
-                  <div className="space-y-2 pt-2 border-t border-slate-800/60">
+                  <div className="space-y-2 pt-2 border-t border-slate-200/60">
                     <label className="flex items-center gap-2.5 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={outsourcingAttach}
                         onChange={e => setOutsourcingAttach(e.target.checked)}
-                        className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 bg-slate-800 border-slate-700"
+                        className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 bg-slate-50 border-slate-200"
                       />
-                      <span className="text-xs text-slate-200 font-bold">このスカウトに業務委託契約（契約案）を添付する</span>
+                      <span className="text-xs text-slate-700 font-bold">このスカウトに業務委託契約（契約案）を添付する</span>
                     </label>
 
                     <label className="flex items-center gap-2.5 cursor-pointer pl-6">
@@ -752,24 +752,24 @@ export default function ScoutMessageModal({
                         checked={outsourcingMandatory}
                         onChange={e => setOutsourcingMandatory(e.target.checked)}
                         disabled={!outsourcingAttach}
-                        className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 bg-slate-800 border-slate-700 disabled:opacity-50"
+                        className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 bg-slate-50 border-slate-200 disabled:opacity-50"
                       />
-                      <span className={`text-xs ${outsourcingAttach ? 'text-slate-300' : 'text-slate-500'}`}>
+                      <span className={`text-xs ${outsourcingAttach ? 'text-slate-700' : 'text-slate-500'}`}>
                         正式プロジェクト参加前の同意を必須にする設定
                       </span>
                     </label>
-                    <p className="text-[11px] text-slate-400 pl-6">
+                    <p className="text-[11px] text-slate-600 pl-6">
                       ※ スカウト承諾のみでは締結されません。条件協議後に最終確認して正式参加前に署名するフローです。
                     </p>
                   </div>
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
-                <button onClick={onClose} className="px-6 py-3 font-bold text-slate-400 hover:text-white transition-colors">
+              <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-slate-200">
+                <button aria-label="Close scout" onClick={onClose} className="px-6 py-3 font-bold text-slate-600 hover:text-slate-900 transition-colors">
                   {language === 'ja' ? 'キャンセル' : 'Cancel'}
                 </button>
-                <button 
+                <button
                   onClick={() => setStep(2)}
                   disabled={!title || !role || !message}
                   className="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold rounded-xl transition-all shadow-lg active:scale-[0.98]"
@@ -781,44 +781,44 @@ export default function ScoutMessageModal({
           ) : (
             <div className="space-y-8">
               {/* Review Step */}
-              <div className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50 space-y-6">
+              <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-200/50 space-y-6">
                 <div>
-                  <p className="text-sm text-slate-400 mb-1">{language === 'ja' ? 'スカウト対象者' : 'To'}</p>
-                  <p className="font-bold text-white text-lg">{targetUserNames?.join(', ')}</p>
+                  <p className="text-sm text-slate-600 mb-1">{language === 'ja' ? 'スカウト対象者' : 'To'}</p>
+                  <p className="font-bold text-slate-900 text-lg">{targetUserNames?.join(', ')}</p>
                 </div>
-                
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm text-slate-400 mb-1">{language === 'ja' ? 'スカウト件名' : 'Title'}</p>
-                    <p className="font-bold text-white">{title}</p>
+                    <p className="text-sm text-slate-600 mb-1">{language === 'ja' ? 'スカウト件名' : 'Title'}</p>
+                    <p className="font-bold text-slate-900">{title}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-slate-400 mb-1">{language === 'ja' ? '依頼する役割' : 'Role'}</p>
-                    <p className="font-bold text-white">{role}</p>
+                    <p className="text-sm text-slate-600 mb-1">{language === 'ja' ? '依頼する役割' : 'Role'}</p>
+                    <p className="font-bold text-slate-900">{role}</p>
                   </div>
                   {period && (
                     <div>
-                      <p className="text-sm text-slate-400 mb-1">{language === 'ja' ? '想定期間' : 'Period'}</p>
-                      <p className="font-bold text-white">{period}</p>
+                      <p className="text-sm text-slate-600 mb-1">{language === 'ja' ? '想定期間' : 'Period'}</p>
+                      <p className="font-bold text-slate-900">{period}</p>
                     </div>
                   )}
                   {rewardType && (
                     <div>
-                      <p className="text-sm text-slate-400 mb-1">{language === 'ja' ? '報酬' : 'Reward'}</p>
-                      <p className="font-bold text-white">{rewardType} {rewardAmount}</p>
+                      <p className="text-sm text-slate-600 mb-1">{language === 'ja' ? '報酬' : 'Reward'}</p>
+                      <p className="font-bold text-slate-900">{rewardType} {rewardAmount}</p>
                     </div>
                   )}
                 </div>
 
                 {/* Attached Contracts Summary in Review */}
-                <div className="p-4 bg-slate-900 border border-slate-700/60 rounded-xl space-y-2">
-                  <p className="text-xs font-bold text-slate-400">添付契約書の有無</p>
+                <div className="p-4 bg-white border border-slate-200/60 rounded-xl space-y-2">
+                  <p className="text-xs font-bold text-slate-600">添付契約書の有無</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                     <div className="flex items-center gap-2">
-                      <Lock className="w-3.5 h-3.5 text-amber-400" />
-                      <span className="text-slate-300">NDA: </span>
+                      <Lock className="w-3.5 h-3.5 text-amber-700" />
+                      <span className="text-slate-700">NDA: </span>
                       {ndaAttach ? (
-                        <span className="text-amber-300 font-bold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                        <span className="text-amber-700 font-bold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
                           添付あり ({ndaTitle}) - {ndaMandatory ? '承諾前同意必須' : '任意'}
                         </span>
                       ) : (
@@ -826,10 +826,10 @@ export default function ScoutMessageModal({
                       )}
                     </div>
                     <div className="flex items-center gap-2">
-                      <FileCode className="w-3.5 h-3.5 text-emerald-400" />
-                      <span className="text-slate-300">業務委託: </span>
+                      <FileCode className="w-3.5 h-3.5 text-emerald-700" />
+                      <span className="text-slate-700">業務委託: </span>
                       {outsourcingAttach ? (
-                        <span className="text-emerald-300 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                        <span className="text-emerald-700 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
                           添付あり ({outsourcingTitle}) - {outsourcingMandatory ? '正式参加前同意必須' : '任意'}
                         </span>
                       ) : (
@@ -840,32 +840,32 @@ export default function ScoutMessageModal({
                 </div>
 
                 <div>
-                  <p className="text-sm text-slate-400 mb-2">{language === 'ja' ? 'メッセージ' : 'Message'}</p>
-                  <div className="bg-slate-900 p-4 rounded-xl text-slate-300 whitespace-pre-wrap border border-slate-700 text-sm">
+                  <p className="text-sm text-slate-600 mb-2">{language === 'ja' ? 'メッセージ' : 'Message'}</p>
+                  <div className="bg-white p-4 rounded-xl text-slate-700 whitespace-pre-wrap border border-slate-200 text-sm">
                     {message}
                   </div>
                 </div>
               </div>
 
               {errorMessage && (
-                <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-300 rounded-xl flex items-center gap-2 text-sm">
-                  <AlertTriangle className="w-5 h-5 shrink-0 text-rose-400" />
+                <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-700 rounded-xl flex items-center gap-2 text-sm">
+                  <AlertTriangle className="w-5 h-5 shrink-0 text-rose-700" />
                   <span>{errorMessage}</span>
                 </div>
               )}
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
-                <button 
-                  onClick={() => setStep(1)} 
+              <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-slate-200">
+                <button
+                  onClick={() => setStep(1)}
                   disabled={isSending}
-                  className="px-6 py-3 font-bold text-slate-400 hover:text-white transition-colors"
+                  className="px-6 py-3 font-bold text-slate-600 hover:text-slate-900 transition-colors"
                 >
                   {language === 'ja' ? '内容を修正する' : 'Edit'}
                 </button>
-                <button 
+                <button
                   onClick={handleSubmit}
                   disabled={isSending}
-                  className="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold rounded-xl transition-all shadow-lg active:scale-[0.98] flex items-center gap-2"
+                  className="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold rounded-xl transition-all shadow-lg active:scale-[0.98] flex items-center justify-center gap-2"
                 >
                   {isSending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
                   {language === 'ja' ? 'スカウトを送信する' : 'Send Scout'}

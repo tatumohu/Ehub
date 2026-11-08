@@ -1,3 +1,7 @@
+import {setupDrafts,installDrafts} from './server/drafts';
+import {setupProjectPosts,installProjectPosts} from './server/projectPosts';
+import {installVision,setupVision,validateInheritedVision} from './server/vision';
+import { setupBusinessCards, installBusinessCards } from './server/businessCards';
 import { generateText, generateImage, requestAIText, projectRoot } from './lib/openai';
 import express from 'express';
 import { createServer as createViteServer } from 'vite';
@@ -29,15 +33,19 @@ const io = new Server(server, {
   cors: { origin: '*' }
 });
 
-const PORT = 3000;
+const PORT = Number(process.env.PORT || 3000);
 
+// Stripe signatures must be verified against the original bytes.
+app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 
 let db: import('better-sqlite3').Database;
+installDrafts(app,()=>db);
+installProjectPosts(app,()=>db,change=>io.emit('vision:changed',change));
 
-const DB_FILE = path.join(projectRoot, 'ehub.db');
+const DB_FILE = process.env.EHUB_DB_PATH || path.join(projectRoot, 'ehub.db');
 const CHUNK_SIZE = 500 * 1024; // 500KB chunks of binary data (safe for Firestore base64)
 
 let dbFirestore: any;
@@ -485,6 +493,7 @@ async function bootDb() {
     session_id INTEGER,
     role TEXT,
     content TEXT,
+    profiles TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(session_id) REFERENCES scout_sessions(id) ON DELETE CASCADE
   );
@@ -535,6 +544,17 @@ async function bootDb() {
     FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
   );
 `);
+
+setupBusinessCards(db);
+setupDrafts(db);
+setupVision(db);
+setupProjectPosts(db);
+db.exec('CREATE TABLE IF NOT EXISTS stripe_processed_events (id TEXT PRIMARY KEY, processed_at DATETIME DEFAULT CURRENT_TIMESTAMP)');
+
+// Add the saved profile suggestions when upgrading an existing database.
+if (!(db.pragma('table_info(scout_messages)') as any[]).some(c => c.name === 'profiles')) {
+  db.exec('ALTER TABLE scout_messages ADD COLUMN profiles TEXT');
+}
 
 // Add folder_id to memos
 try {
@@ -1364,8 +1384,8 @@ app.get('/api/users/:id', (req, res) => {
 
   const subscriberCount = db.prepare('SELECT COUNT(*) as count FROM subscriptions WHERE subscribed_to_id = ?').get(user_id) as any;
   const followingCount = db.prepare('SELECT COUNT(*) as count FROM subscriptions WHERE subscriber_id = ?').get(user_id) as any;
-  const ideaCount = db.prepare('SELECT COUNT(*) as count FROM ideas WHERE author_id = ?').get(user_id) as any;
-  const projectCount = db.prepare('SELECT COUNT(*) as count FROM projects WHERE author_id = ?').get(user_id) as any;
+  const ideaCount = db.prepare('SELECT COUNT(*) as count FROM ideas WHERE project_post_deleted_at IS NULL AND author_id = ?').get(user_id) as any;
+  const projectCount = db.prepare('SELECT COUNT(*) as count FROM projects WHERE project_post_deleted_at IS NULL AND author_id = ?').get(user_id) as any;
   const jointCount = db.prepare(`
     SELECT COUNT(*) as count 
     FROM idea_follows 
@@ -1492,7 +1512,7 @@ app.get('/api/users/:id/unread_recruitment_count', (req, res) => {
       FROM ideas i
       JOIN users u ON i.author_id = u.id
       JOIN projects p ON i.quoted_item_id = p.id AND i.quoted_item_type = 'project'
-      WHERE p.author_id = ? AND p.is_recruitment = 1 AND u.account_type = 'individual'
+      WHERE p.project_post_deleted_at IS NULL AND i.project_post_deleted_at IS NULL AND p.author_id = ? AND p.is_recruitment = 1 AND u.account_type = 'individual'
         AND NOT EXISTS (SELECT 1 FROM idea_reads ir WHERE ir.idea_id = i.id AND ir.user_id = ?)
     `).get(user_id, user_id) as any;
 
@@ -1501,7 +1521,7 @@ app.get('/api/users/:id/unread_recruitment_count', (req, res) => {
       FROM ideas i
       JOIN users u ON i.author_id = u.id
       JOIN ideas ri ON i.quoted_item_id = ri.id AND i.quoted_item_type = 'idea'
-      WHERE ri.author_id = ? AND ri.is_recruitment = 1 AND u.account_type = 'individual'
+      WHERE ri.project_post_deleted_at IS NULL AND i.project_post_deleted_at IS NULL AND ri.author_id = ? AND ri.is_recruitment = 1 AND u.account_type = 'individual'
         AND NOT EXISTS (SELECT 1 FROM idea_reads ir WHERE ir.idea_id = i.id AND ir.user_id = ?)
     `).get(user_id, user_id) as any;
 
@@ -1533,10 +1553,10 @@ app.get('/api/users/:id/recruitment_my_emas', (req, res) => {
                (SELECT username FROM users WHERE id = author_id) as author_name,
                (SELECT avatar FROM users WHERE id = author_id) as author_avatar,
                (SELECT COUNT(*) FROM likes WHERE item_id = projects.id AND item_type = 'project') as likes_count,
-               (SELECT COUNT(*) FROM comments WHERE project_id = projects.id) as comments_count,
+               (SELECT COUNT(*) FROM comments WHERE deleted_at IS NULL AND project_id = projects.id) as comments_count,
                (SELECT COUNT(*) FROM archives WHERE item_id = projects.id AND item_type = 'project') as archives_count,
                (SELECT COUNT(*) FROM idea_follows WHERE project_id = projects.id AND is_mutual = 1) as follows_count,
-               (SELECT COUNT(*) FROM ideas q WHERE q.quoted_item_id = projects.id AND q.quoted_item_type = 'project') as quotes_count,
+               (SELECT COUNT(*) FROM ideas q WHERE q.quoted_item_id = projects.id AND q.quoted_item_type = 'project' AND q.project_post_deleted_at IS NULL) as quotes_count,
                (
                  SELECT COUNT(i.id) FROM ideas i
                  JOIN users u ON i.author_id = u.id
@@ -1556,10 +1576,10 @@ app.get('/api/users/:id/recruitment_my_emas', (req, res) => {
                (SELECT username FROM users WHERE id = author_id) as author_name,
                (SELECT avatar FROM users WHERE id = author_id) as author_avatar,
                (SELECT COUNT(*) FROM likes WHERE item_id = ideas.id AND item_type = 'idea') as likes_count,
-               (SELECT COUNT(*) FROM comments WHERE idea_id = ideas.id) as comments_count,
+               (SELECT COUNT(*) FROM comments WHERE deleted_at IS NULL AND idea_id = ideas.id) as comments_count,
                (SELECT COUNT(*) FROM archives WHERE item_id = ideas.id AND item_type = 'idea') as archives_count,
                (SELECT COUNT(*) FROM idea_follows WHERE idea_id = ideas.id AND is_mutual = 1) as follows_count,
-               (SELECT COUNT(*) FROM ideas q WHERE q.quoted_item_id = ideas.id AND q.quoted_item_type = 'idea') as quotes_count,
+               (SELECT COUNT(*) FROM ideas q WHERE q.quoted_item_id = ideas.id AND q.quoted_item_type = 'idea' AND q.project_post_deleted_at IS NULL) as quotes_count,
                (
                  SELECT COUNT(i.id) FROM ideas i
                  JOIN users u ON i.author_id = u.id
@@ -1582,13 +1602,13 @@ app.get('/api/users/:id/recruitment_my_emas', (req, res) => {
                (SELECT username FROM users WHERE id = author_id) as author_name,
                (SELECT avatar FROM users WHERE id = author_id) as author_avatar,
                (SELECT COUNT(*) FROM likes WHERE item_id = projects.id AND item_type = 'project') as likes_count,
-               (SELECT COUNT(*) FROM comments WHERE project_id = projects.id) as comments_count,
+               (SELECT COUNT(*) FROM comments WHERE deleted_at IS NULL AND project_id = projects.id) as comments_count,
                (SELECT COUNT(*) FROM archives WHERE item_id = projects.id AND item_type = 'project') as archives_count,
                (SELECT COUNT(*) FROM idea_follows WHERE project_id = projects.id AND is_mutual = 1) as follows_count,
-               (SELECT COUNT(*) FROM ideas q WHERE q.quoted_item_id = projects.id AND q.quoted_item_type = 'project') as quotes_count,
+               (SELECT COUNT(*) FROM ideas q WHERE q.quoted_item_id = projects.id AND q.quoted_item_type = 'project' AND q.project_post_deleted_at IS NULL) as quotes_count,
                0 as unread_ideas_count
         FROM projects
-        WHERE is_recruitment = 1 AND id IN (SELECT quoted_item_id FROM ideas WHERE author_id = ? AND quoted_item_type = 'project')
+        WHERE project_post_deleted_at IS NULL AND is_recruitment = 1 AND id IN (SELECT quoted_item_id FROM ideas WHERE author_id = ? AND quoted_item_type = 'project')
         ORDER BY created_at DESC
       `).all(user_id) as any[];
 
@@ -1600,13 +1620,13 @@ app.get('/api/users/:id/recruitment_my_emas', (req, res) => {
                (SELECT username FROM users WHERE id = author_id) as author_name,
                (SELECT avatar FROM users WHERE id = author_id) as author_avatar,
                (SELECT COUNT(*) FROM likes WHERE item_id = ideas.id AND item_type = 'idea') as likes_count,
-               (SELECT COUNT(*) FROM comments WHERE idea_id = ideas.id) as comments_count,
+               (SELECT COUNT(*) FROM comments WHERE deleted_at IS NULL AND idea_id = ideas.id) as comments_count,
                (SELECT COUNT(*) FROM archives WHERE item_id = ideas.id AND item_type = 'idea') as archives_count,
                (SELECT COUNT(*) FROM idea_follows WHERE idea_id = ideas.id AND is_mutual = 1) as follows_count,
-               (SELECT COUNT(*) FROM ideas q WHERE q.quoted_item_id = ideas.id AND q.quoted_item_type = 'idea') as quotes_count,
+               (SELECT COUNT(*) FROM ideas q WHERE q.quoted_item_id = ideas.id AND q.quoted_item_type = 'idea' AND q.project_post_deleted_at IS NULL) as quotes_count,
                0 as unread_ideas_count
         FROM ideas
-        WHERE is_recruitment = 1 AND id IN (SELECT quoted_item_id FROM ideas WHERE author_id = ? AND quoted_item_type = 'idea')
+        WHERE project_post_deleted_at IS NULL AND is_recruitment = 1 AND id IN (SELECT quoted_item_id FROM ideas WHERE author_id = ? AND quoted_item_type = 'idea')
         ORDER BY created_at DESC
       `).all(user_id) as any[];
 
@@ -1717,7 +1737,7 @@ app.get('/api/users/:id/joint', (req, res) => {
              strftime('%Y-%m-%dT%H:%M:%SZ', idea_follows.created_at) as created_at,
              users.username as author_name, users.avatar as author_avatar, users.account_type as author_account_type, users.org_plan as author_org_plan,
              (SELECT COUNT(*) FROM likes WHERE item_id = ideas.id AND item_type = 'idea') as likes_count,
-             (SELECT COUNT(*) FROM comments WHERE idea_id = ideas.id) as comments_count,
+             (SELECT COUNT(*) FROM comments WHERE deleted_at IS NULL AND idea_id = ideas.id) as comments_count,
              (SELECT COUNT(*) FROM archives WHERE item_id = ideas.id AND item_type = 'idea') as archives_count,
              (SELECT COUNT(*) FROM idea_follows WHERE idea_id = ideas.id AND is_mutual = 1) as follows_count,
            (SELECT COUNT(*) FROM idea_follows WHERE idea_id = ideas.id AND is_mutual = 0 AND status = 'pending') as pending_approvals_count, (
@@ -1726,7 +1746,7 @@ app.get('/api/users/:id/joint', (req, res) => {
              UNION ALL
              SELECT i.id FROM ideas i JOIN idea_tree it ON i.quoted_item_id = it.id AND i.quoted_item_type = 'idea'
            )
-           SELECT COUNT(*) FROM idea_tree
+           SELECT COUNT(*) FROM idea_tree WHERE id IN (SELECT id FROM ideas WHERE project_post_deleted_at IS NULL)
          ) as quotes_count
       FROM idea_follows
       JOIN ideas ON idea_follows.idea_id = ideas.id
@@ -1737,7 +1757,7 @@ app.get('/api/users/:id/joint', (req, res) => {
              strftime('%Y-%m-%dT%H:%M:%SZ', idea_follows.created_at) as created_at,
              users.username as author_name, users.avatar as author_avatar, users.account_type as author_account_type, users.org_plan as author_org_plan,
              (SELECT COUNT(*) FROM likes WHERE item_id = projects.id AND item_type = 'project') as likes_count,
-             (SELECT COUNT(*) FROM comments WHERE project_id = projects.id) as comments_count,
+             (SELECT COUNT(*) FROM comments WHERE deleted_at IS NULL AND project_id = projects.id) as comments_count,
              (SELECT COUNT(*) FROM archives WHERE item_id = projects.id AND item_type = 'project') as archives_count,
              (SELECT COUNT(*) FROM idea_follows WHERE project_id = projects.id AND is_mutual = 1) as follows_count,
            (SELECT COUNT(*) FROM idea_follows WHERE project_id = projects.id AND is_mutual = 0 AND status = 'pending') as pending_approvals_count, (
@@ -1746,7 +1766,7 @@ app.get('/api/users/:id/joint', (req, res) => {
              UNION ALL
              SELECT i.id FROM ideas i JOIN idea_tree it ON i.quoted_item_id = it.id AND i.quoted_item_type = 'idea'
            )
-           SELECT COUNT(*) FROM idea_tree
+           SELECT COUNT(*) FROM idea_tree WHERE id IN (SELECT id FROM ideas WHERE project_post_deleted_at IS NULL)
          ) as quotes_count
       FROM idea_follows
       JOIN projects ON idea_follows.project_id = projects.id
@@ -2145,7 +2165,7 @@ app.get('/api/ideas/region_recommended', (req, res) => {
              (SELECT username FROM users WHERE id = author_id) as author_name,
              (SELECT avatar FROM users WHERE id = author_id) as author_avatar,
              (SELECT COUNT(*) FROM likes WHERE item_id = projects.id AND item_type = 'project') as likes_count,
-             (SELECT COUNT(*) FROM comments WHERE project_id = projects.id) as comments_count,
+             (SELECT COUNT(*) FROM comments WHERE deleted_at IS NULL AND project_id = projects.id) as comments_count,
              (SELECT COUNT(*) FROM archives WHERE item_id = projects.id AND item_type = 'project') as archives_count,
              (SELECT COUNT(*) FROM idea_follows WHERE project_id = projects.id AND is_mutual = 1) as follows_count, (
                WITH RECURSIVE idea_tree AS (
@@ -2153,7 +2173,7 @@ app.get('/api/ideas/region_recommended', (req, res) => {
                  UNION ALL
                  SELECT i.id FROM ideas i JOIN idea_tree it ON i.quoted_item_id = it.id AND i.quoted_item_type = 'idea'
                )
-               SELECT COUNT(*) FROM idea_tree
+               SELECT COUNT(*) FROM idea_tree WHERE id IN (SELECT id FROM ideas WHERE project_post_deleted_at IS NULL)
              ) as quotes_count,
              (
                (SELECT COUNT(*) FROM likes l JOIN users u ON l.user_id = u.id WHERE l.item_id = projects.id AND l.item_type = 'project' AND u.country = ? AND u.region = ?) * 2 +
@@ -2169,7 +2189,7 @@ app.get('/api/ideas/region_recommended', (req, res) => {
              (SELECT username FROM users WHERE id = author_id) as author_name,
              (SELECT avatar FROM users WHERE id = author_id) as author_avatar,
              (SELECT COUNT(*) FROM likes WHERE item_id = ideas.id AND item_type = 'idea') as likes_count,
-             (SELECT COUNT(*) FROM comments WHERE idea_id = ideas.id) as comments_count,
+             (SELECT COUNT(*) FROM comments WHERE deleted_at IS NULL AND idea_id = ideas.id) as comments_count,
              (SELECT COUNT(*) FROM archives WHERE item_id = ideas.id AND item_type = 'idea') as archives_count,
              (SELECT COUNT(*) FROM idea_follows WHERE idea_id = ideas.id AND is_mutual = 1) as follows_count, (
                WITH RECURSIVE idea_tree AS (
@@ -2177,7 +2197,7 @@ app.get('/api/ideas/region_recommended', (req, res) => {
                  UNION ALL
                  SELECT i.id FROM ideas i JOIN idea_tree it ON i.quoted_item_id = it.id AND i.quoted_item_type = 'idea'
                )
-               SELECT COUNT(*) FROM idea_tree
+               SELECT COUNT(*) FROM idea_tree WHERE id IN (SELECT id FROM ideas WHERE project_post_deleted_at IS NULL)
              ) as quotes_count,
              (
                (SELECT COUNT(*) FROM likes l JOIN users u ON l.user_id = u.id WHERE l.item_id = ideas.id AND l.item_type = 'idea' AND u.country = ? AND u.region = ?) * 2 +
@@ -2210,7 +2230,7 @@ app.get('/api/ideas/recommended', (req, res) => {
              (SELECT username FROM users WHERE id = author_id) as author_name,
              (SELECT avatar FROM users WHERE id = author_id) as author_avatar,
              (SELECT COUNT(*) FROM likes WHERE item_id = projects.id AND item_type = 'project') as likes_count,
-             (SELECT COUNT(*) FROM comments WHERE project_id = projects.id) as comments_count,
+             (SELECT COUNT(*) FROM comments WHERE deleted_at IS NULL AND project_id = projects.id) as comments_count,
              (SELECT COUNT(*) FROM archives WHERE item_id = projects.id AND item_type = 'project') as archives_count,
              (SELECT COUNT(*) FROM idea_follows WHERE project_id = projects.id AND is_mutual = 1) as follows_count, (
            WITH RECURSIVE idea_tree AS (
@@ -2218,7 +2238,7 @@ app.get('/api/ideas/recommended', (req, res) => {
              UNION ALL
              SELECT i.id FROM ideas i JOIN idea_tree it ON i.quoted_item_id = it.id AND i.quoted_item_type = 'idea'
            )
-           SELECT COUNT(*) FROM idea_tree
+           SELECT COUNT(*) FROM idea_tree WHERE id IN (SELECT id FROM ideas WHERE project_post_deleted_at IS NULL)
          ) as quotes_count
       FROM projects
       WHERE status = 'active'
@@ -2238,7 +2258,7 @@ app.get('/api/ideas/recommended', (req, res) => {
              strftime('%Y-%m-%dT%H:%M:%SZ', projects.created_at) as created_at,
              users.username as author_name, users.avatar as author_avatar, users.account_type as author_account_type, users.org_plan as author_org_plan,
              (SELECT COUNT(*) FROM likes WHERE item_id = projects.id AND item_type = 'project') as likes_count,
-             (SELECT COUNT(*) FROM comments WHERE project_id = projects.id) as comments_count,
+             (SELECT COUNT(*) FROM comments WHERE deleted_at IS NULL AND project_id = projects.id) as comments_count,
              (SELECT COUNT(*) FROM archives WHERE item_id = projects.id AND item_type = 'project') as archives_count,
              (SELECT COUNT(*) FROM idea_follows WHERE project_id = projects.id AND is_mutual = 1) as follows_count, (
            WITH RECURSIVE idea_tree AS (
@@ -2246,7 +2266,7 @@ app.get('/api/ideas/recommended', (req, res) => {
              UNION ALL
              SELECT i.id FROM ideas i JOIN idea_tree it ON i.quoted_item_id = it.id AND i.quoted_item_type = 'idea'
            )
-           SELECT COUNT(*) FROM idea_tree
+           SELECT COUNT(*) FROM idea_tree WHERE id IN (SELECT id FROM ideas WHERE project_post_deleted_at IS NULL)
          ) as quotes_count,
              CASE WHEN subscriptions.id IS NOT NULL THEN 2 
                   WHEN views.id IS NOT NULL THEN 1 
@@ -2346,7 +2366,7 @@ app.get('/api/users/:id/comments', (req, res) => {
       LEFT JOIN projects p ON c.project_id = p.id
       LEFT JOIN users iu ON i.author_id = iu.id
       LEFT JOIN users pu ON p.author_id = pu.id
-      WHERE c.user_id = ? AND (p.id IS NOT NULL OR i.id IS NOT NULL)
+      WHERE c.deleted_at IS NULL AND c.user_id = ? AND (p.id IS NOT NULL OR i.id IS NOT NULL)
       ORDER BY c.created_at DESC
     `).all(id);
     res.json(items);
@@ -2364,7 +2384,7 @@ app.get('/api/users/:id/ideas', (req, res) => {
            strftime('%Y-%m-%dT%H:%M:%SZ', ideas.created_at) as created_at,
            users.username as author_name, users.avatar as author_avatar, users.account_type as author_account_type, users.org_plan as author_org_plan,
            (SELECT COUNT(*) FROM likes WHERE item_id = ideas.id AND item_type = 'idea') as likes_count,
-           (SELECT COUNT(*) FROM comments WHERE idea_id = ideas.id) as comments_count,
+           (SELECT COUNT(*) FROM comments WHERE deleted_at IS NULL AND idea_id = ideas.id) as comments_count,
              (SELECT COUNT(*) FROM archives WHERE item_id = ideas.id AND item_type = 'idea') as archives_count,
            (SELECT COUNT(*) FROM idea_follows WHERE idea_id = ideas.id AND is_mutual = 1) as follows_count, (
            WITH RECURSIVE idea_tree AS (
@@ -2372,11 +2392,11 @@ app.get('/api/users/:id/ideas', (req, res) => {
              UNION ALL
              SELECT i.id FROM ideas i JOIN idea_tree it ON i.quoted_item_id = it.id AND i.quoted_item_type = 'idea'
            )
-           SELECT COUNT(*) FROM idea_tree
+           SELECT COUNT(*) FROM idea_tree WHERE id IN (SELECT id FROM ideas WHERE project_post_deleted_at IS NULL)
          ) as quotes_count
     FROM ideas
     JOIN users ON ideas.author_id = users.id
-    WHERE ideas.author_id = ? AND ideas.status = 'active'
+    WHERE ideas.project_post_deleted_at IS NULL AND ideas.author_id = ? AND ideas.status = 'active'
     ORDER BY ideas.created_at DESC
   `).all(req.params.id);
   res.json(ideas);
@@ -2389,7 +2409,7 @@ app.get('/api/users/:id/projects', (req, res) => {
            strftime('%Y-%m-%dT%H:%M:%SZ', projects.created_at) as created_at,
            users.username as author_name, users.avatar as author_avatar, users.account_type as author_account_type, users.org_plan as author_org_plan,
            (SELECT COUNT(*) FROM likes WHERE item_id = projects.id AND item_type = 'project') as likes_count,
-           (SELECT COUNT(*) FROM comments WHERE project_id = projects.id) as comments_count,
+           (SELECT COUNT(*) FROM comments WHERE deleted_at IS NULL AND project_id = projects.id) as comments_count,
              (SELECT COUNT(*) FROM archives WHERE item_id = projects.id AND item_type = 'project') as archives_count,
            (SELECT COUNT(*) FROM idea_follows WHERE project_id = projects.id AND is_mutual = 1) as follows_count, (
            WITH RECURSIVE idea_tree AS (
@@ -2397,11 +2417,11 @@ app.get('/api/users/:id/projects', (req, res) => {
              UNION ALL
              SELECT i.id FROM ideas i JOIN idea_tree it ON i.quoted_item_id = it.id AND i.quoted_item_type = 'idea'
            )
-           SELECT COUNT(*) FROM idea_tree
+           SELECT COUNT(*) FROM idea_tree WHERE id IN (SELECT id FROM ideas WHERE project_post_deleted_at IS NULL)
          ) as quotes_count
     FROM projects
     JOIN users ON projects.author_id = users.id
-    WHERE projects.author_id = ?
+    WHERE projects.project_post_deleted_at IS NULL AND projects.author_id = ?
     ORDER BY projects.created_at DESC
   `).all(req.params.id);
   res.json(projects);
@@ -2415,7 +2435,7 @@ app.get('/api/users/:id/ema', (req, res) => {
              strftime('%Y-%m-%dT%H:%M:%SZ', ideas.created_at) as created_at,
              users.username as author_name, users.avatar as author_avatar, users.account_type as author_account_type, users.org_plan as author_org_plan,
              (SELECT COUNT(*) FROM likes WHERE item_id = ideas.id AND item_type = 'idea') as likes_count,
-             (SELECT COUNT(*) FROM comments WHERE idea_id = ideas.id) as comments_count,
+             (SELECT COUNT(*) FROM comments WHERE deleted_at IS NULL AND idea_id = ideas.id) as comments_count,
              (SELECT COUNT(*) FROM archives WHERE item_id = ideas.id AND item_type = 'idea') as archives_count,
              (SELECT COUNT(*) FROM idea_follows WHERE idea_id = ideas.id AND is_mutual = 1) as follows_count, (
            WITH RECURSIVE idea_tree AS (
@@ -2423,17 +2443,17 @@ app.get('/api/users/:id/ema', (req, res) => {
              UNION ALL
              SELECT i.id FROM ideas i JOIN idea_tree it ON i.quoted_item_id = it.id AND i.quoted_item_type = 'idea'
            )
-           SELECT COUNT(*) FROM idea_tree
+           SELECT COUNT(*) FROM idea_tree WHERE id IN (SELECT id FROM ideas WHERE project_post_deleted_at IS NULL)
          ) as quotes_count
       FROM ideas
       JOIN users ON ideas.author_id = users.id
-      WHERE ideas.author_id = ? AND ideas.status = 'active'
+      WHERE ideas.project_post_deleted_at IS NULL AND ideas.author_id = ? AND ideas.status = 'active'
       UNION ALL
       SELECT projects.id, projects.title, projects.image, COALESCE((SELECT COALESCE(ROUND(AVG(se.stage)), i.stage) FROM ideas i LEFT JOIN stage_evaluations se ON se.item_id = i.id AND se.item_type = 'idea' WHERE i.id = projects.latest_idea_id GROUP BY i.id), (SELECT COALESCE(ROUND(AVG(se.stage)), projects.stage) FROM stage_evaluations se WHERE se.item_id = projects.id AND se.item_type = 'project'), projects.stage) as stage, projects.is_recruitment, projects.is_buyout, projects.buyout_price, projects.is_private, projects.permitted_users, latest_idea_id, strftime('%Y-%m-%dT%H:%M:%SZ', latest_idea_at) as latest_idea_at, 'project' as type, 
              strftime('%Y-%m-%dT%H:%M:%SZ', projects.created_at) as created_at,
              users.username as author_name, users.avatar as author_avatar, users.account_type as author_account_type, users.org_plan as author_org_plan,
              (SELECT COUNT(*) FROM likes WHERE item_id = projects.id AND item_type = 'project') as likes_count,
-             (SELECT COUNT(*) FROM comments WHERE project_id = projects.id) as comments_count,
+             (SELECT COUNT(*) FROM comments WHERE deleted_at IS NULL AND project_id = projects.id) as comments_count,
              (SELECT COUNT(*) FROM archives WHERE item_id = projects.id AND item_type = 'project') as archives_count,
              (SELECT COUNT(*) FROM idea_follows WHERE project_id = projects.id AND is_mutual = 1) as follows_count, (
            WITH RECURSIVE idea_tree AS (
@@ -2441,13 +2461,13 @@ app.get('/api/users/:id/ema', (req, res) => {
              UNION ALL
              SELECT i.id FROM ideas i JOIN idea_tree it ON i.quoted_item_id = it.id AND i.quoted_item_type = 'idea'
            )
-           SELECT COUNT(*) FROM idea_tree
+           SELECT COUNT(*) FROM idea_tree WHERE id IN (SELECT id FROM ideas WHERE project_post_deleted_at IS NULL)
          ) as quotes_count
       FROM projects
       JOIN users ON projects.author_id = users.id
-      WHERE projects.author_id = ?
+      WHERE projects.project_post_deleted_at IS NULL AND projects.author_id = ?
       ORDER BY created_at DESC
-    `).all(req.params.id, req.params.id, req.params.id);
+    `).all(req.params.id, req.params.id);
     res.json(emaItems);
   } catch (e) {
     console.error('Error fetching ema items:', e);
@@ -2481,7 +2501,7 @@ app.get('/api/lineage/:type/:id', (req, res) => {
              (SELECT username FROM users WHERE id = author_id) as author_name,
              (SELECT avatar FROM users WHERE id = author_id) as author_avatar,
              (SELECT COUNT(*) FROM likes WHERE item_id = ${table}.id AND item_type = '${currentType}') as likes_count,
-             (SELECT COUNT(*) FROM comments WHERE ${currentType}_id = ${table}.id) as comments_count
+             (SELECT COUNT(*) FROM comments WHERE deleted_at IS NULL AND ${currentType}_id = ${table}.id) as comments_count
       FROM ${table} WHERE id = ?
     `).get(currentId) as any;
 
@@ -2518,7 +2538,7 @@ app.get('/api/lineage/:type/:id', (req, res) => {
            (SELECT username FROM users WHERE id = author_id) as author_name,
            (SELECT avatar FROM users WHERE id = author_id) as author_avatar,
            (SELECT COUNT(*) FROM likes WHERE item_id = ideas.id AND item_type = 'idea') as likes_count,
-           (SELECT COUNT(*) FROM comments WHERE idea_id = ideas.id) as comments_count,
+           (SELECT COUNT(*) FROM comments WHERE deleted_at IS NULL AND idea_id = ideas.id) as comments_count,
            'idea' as type
       FROM ideas 
       WHERE quoted_item_id = ? AND quoted_item_type = ? AND status = 'active'
@@ -2530,7 +2550,7 @@ app.get('/api/lineage/:type/:id', (req, res) => {
            (SELECT username FROM users WHERE id = author_id) as author_name,
            (SELECT avatar FROM users WHERE id = author_id) as author_avatar,
            (SELECT COUNT(*) FROM likes WHERE item_id = projects.id AND item_type = 'project') as likes_count,
-           (SELECT COUNT(*) FROM comments WHERE project_id = projects.id) as comments_count,
+           (SELECT COUNT(*) FROM comments WHERE deleted_at IS NULL AND project_id = projects.id) as comments_count,
            'project' as type
       FROM projects 
       WHERE quoted_item_id = ? AND quoted_item_type = ?
@@ -2813,11 +2833,11 @@ app.get('/api/ideas', (req, res) => {
   
   if (search) {
     ideas = db.prepare(`
-      SELECT ideas.id, ideas.title, ideas.description, ideas.image, ideas.author_id, ideas.quoted_item_id, ideas.quoted_item_type, ideas.stage as stage, ideas.is_recruitment, ideas.is_buyout, ideas.buyout_price, ideas.is_private, ideas.permitted_users, ideas.tags, ideas.version, strftime('%Y-%m-%dT%H:%M:%SZ', ideas.updated_at) as updated_at, ideas.proposed_type, ideas.remand_reason, ideas.remand_changes, ideas.remand_notes,
+      SELECT ideas.id, ideas.title, ideas.description, ideas.image, ideas.images, ideas.vision_edited_at, ideas.project_edited_at, ideas.author_id, ideas.quoted_item_id, ideas.quoted_item_type, ideas.stage as stage, ideas.is_recruitment, ideas.is_buyout, ideas.buyout_price, ideas.is_private, ideas.permitted_users, ideas.tags, ideas.version, strftime('%Y-%m-%dT%H:%M:%SZ', ideas.updated_at) as updated_at, ideas.proposed_type, ideas.remand_reason, ideas.remand_changes, ideas.remand_notes,
              strftime('%Y-%m-%dT%H:%M:%SZ', ideas.created_at) as created_at,
              users.username as author_name, users.avatar as author_avatar, users.account_type as author_account_type, users.org_plan as author_org_plan,
              (SELECT COUNT(*) FROM likes WHERE item_id = ideas.id AND item_type = 'idea') as likes_count,
-             (SELECT COUNT(*) FROM comments WHERE idea_id = ideas.id) as comments_count,
+             (SELECT COUNT(*) FROM comments WHERE deleted_at IS NULL AND idea_id = ideas.id) as comments_count,
              (SELECT COUNT(*) FROM archives WHERE item_id = ideas.id AND item_type = 'idea') as archives_count,
              (SELECT COUNT(*) FROM idea_follows WHERE idea_id = ideas.id AND is_mutual = 1) as follows_count, (
            WITH RECURSIVE idea_tree AS (
@@ -2825,7 +2845,7 @@ app.get('/api/ideas', (req, res) => {
              UNION ALL
              SELECT i.id FROM ideas i JOIN idea_tree it ON i.quoted_item_id = it.id AND i.quoted_item_type = 'idea'
            )
-           SELECT COUNT(*) FROM idea_tree
+           SELECT COUNT(*) FROM idea_tree WHERE id IN (SELECT id FROM ideas WHERE project_post_deleted_at IS NULL)
          ) as quotes_count
       FROM ideas
       JOIN users ON ideas.author_id = users.id
@@ -2843,11 +2863,11 @@ app.get('/api/ideas', (req, res) => {
   } else if (user_id) {
     // Recommendation logic: Prioritize subscribed users, then others
     ideas = db.prepare(`
-      SELECT ideas.id, ideas.title, ideas.description, ideas.image, ideas.author_id, ideas.quoted_item_id, ideas.quoted_item_type, ideas.stage as stage, ideas.is_recruitment, ideas.is_buyout, ideas.buyout_price, ideas.is_private, ideas.permitted_users, ideas.tags, ideas.version, strftime('%Y-%m-%dT%H:%M:%SZ', ideas.updated_at) as updated_at, ideas.proposed_type, ideas.remand_reason, ideas.remand_changes, ideas.remand_notes,
+      SELECT ideas.id, ideas.title, ideas.description, ideas.image, ideas.images, ideas.vision_edited_at, ideas.project_edited_at, ideas.author_id, ideas.quoted_item_id, ideas.quoted_item_type, ideas.stage as stage, ideas.is_recruitment, ideas.is_buyout, ideas.buyout_price, ideas.is_private, ideas.permitted_users, ideas.tags, ideas.version, strftime('%Y-%m-%dT%H:%M:%SZ', ideas.updated_at) as updated_at, ideas.proposed_type, ideas.remand_reason, ideas.remand_changes, ideas.remand_notes,
              strftime('%Y-%m-%dT%H:%M:%SZ', ideas.created_at) as created_at,
              users.username as author_name, users.avatar as author_avatar, users.account_type as author_account_type, users.org_plan as author_org_plan,
              (SELECT COUNT(*) FROM likes WHERE item_id = ideas.id AND item_type = 'idea') as likes_count,
-             (SELECT COUNT(*) FROM comments WHERE idea_id = ideas.id) as comments_count,
+             (SELECT COUNT(*) FROM comments WHERE deleted_at IS NULL AND idea_id = ideas.id) as comments_count,
              (SELECT COUNT(*) FROM archives WHERE item_id = ideas.id AND item_type = 'idea') as archives_count,
              (SELECT COUNT(*) FROM idea_follows WHERE idea_id = ideas.id AND is_mutual = 1) as follows_count, (
            WITH RECURSIVE idea_tree AS (
@@ -2855,7 +2875,7 @@ app.get('/api/ideas', (req, res) => {
              UNION ALL
              SELECT i.id FROM ideas i JOIN idea_tree it ON i.quoted_item_id = it.id AND i.quoted_item_type = 'idea'
            )
-           SELECT COUNT(*) FROM idea_tree
+           SELECT COUNT(*) FROM idea_tree WHERE id IN (SELECT id FROM ideas WHERE project_post_deleted_at IS NULL)
          ) as quotes_count,
              CASE WHEN subscriptions.id IS NOT NULL THEN 1 ELSE 0 END as is_subscribed
       FROM ideas
@@ -2873,11 +2893,11 @@ app.get('/api/ideas', (req, res) => {
     `).all(user_id);
   } else {
     ideas = db.prepare(`
-      SELECT ideas.id, ideas.title, ideas.description, ideas.image, ideas.author_id, ideas.quoted_item_id, ideas.quoted_item_type, ideas.stage as stage, ideas.is_recruitment, ideas.is_buyout, ideas.buyout_price, ideas.is_private, ideas.permitted_users, ideas.tags, ideas.version, strftime('%Y-%m-%dT%H:%M:%SZ', ideas.updated_at) as updated_at, ideas.proposed_type, ideas.remand_reason, ideas.remand_changes, ideas.remand_notes,
+      SELECT ideas.id, ideas.title, ideas.description, ideas.image, ideas.images, ideas.vision_edited_at, ideas.project_edited_at, ideas.author_id, ideas.quoted_item_id, ideas.quoted_item_type, ideas.stage as stage, ideas.is_recruitment, ideas.is_buyout, ideas.buyout_price, ideas.is_private, ideas.permitted_users, ideas.tags, ideas.version, strftime('%Y-%m-%dT%H:%M:%SZ', ideas.updated_at) as updated_at, ideas.proposed_type, ideas.remand_reason, ideas.remand_changes, ideas.remand_notes,
              strftime('%Y-%m-%dT%H:%M:%SZ', ideas.created_at) as created_at,
              users.username as author_name, users.avatar as author_avatar, users.account_type as author_account_type, users.org_plan as author_org_plan,
              (SELECT COUNT(*) FROM likes WHERE item_id = ideas.id AND item_type = 'idea') as likes_count,
-             (SELECT COUNT(*) FROM comments WHERE idea_id = ideas.id) as comments_count,
+             (SELECT COUNT(*) FROM comments WHERE deleted_at IS NULL AND idea_id = ideas.id) as comments_count,
              (SELECT COUNT(*) FROM archives WHERE item_id = ideas.id AND item_type = 'idea') as archives_count,
              (SELECT COUNT(*) FROM idea_follows WHERE idea_id = ideas.id AND is_mutual = 1) as follows_count, (
            WITH RECURSIVE idea_tree AS (
@@ -2885,7 +2905,7 @@ app.get('/api/ideas', (req, res) => {
              UNION ALL
              SELECT i.id FROM ideas i JOIN idea_tree it ON i.quoted_item_id = it.id AND i.quoted_item_type = 'idea'
            )
-           SELECT COUNT(*) FROM idea_tree
+           SELECT COUNT(*) FROM idea_tree WHERE id IN (SELECT id FROM ideas WHERE project_post_deleted_at IS NULL)
          ) as quotes_count
       FROM ideas
       JOIN users ON ideas.author_id = users.id
@@ -2909,11 +2929,11 @@ app.get('/api/projects', (req, res) => {
   let projects;
   if (search) {
     projects = db.prepare(`
-      SELECT projects.id, projects.title, projects.description, projects.image, projects.images, projects.completed_title, projects.completed_description, projects.completed_images, projects.author_id, projects.status, projects.quoted_item_id, projects.quoted_item_type, projects.stage as stage, projects.is_recruitment, projects.is_buyout, projects.buyout_price, projects.is_private, projects.permitted_users, projects.tags, projects.completed_tags, latest_idea_id, strftime('%Y-%m-%dT%H:%M:%SZ', latest_idea_at) as latest_idea_at,
+      SELECT projects.id, projects.title, projects.description, projects.image, projects.images, projects.vision_edited_at, projects.project_edited_at, projects.completed_title, projects.completed_description, projects.completed_images, projects.author_id, projects.status, projects.quoted_item_id, projects.quoted_item_type, projects.stage as stage, projects.is_recruitment, projects.is_buyout, projects.buyout_price, projects.is_private, projects.permitted_users, projects.tags, projects.completed_tags, latest_idea_id, strftime('%Y-%m-%dT%H:%M:%SZ', latest_idea_at) as latest_idea_at,
              strftime('%Y-%m-%dT%H:%M:%SZ', projects.created_at) as created_at,
              users.username as author_name, users.avatar as author_avatar, users.account_type as author_account_type, users.org_plan as author_org_plan,
              (SELECT COUNT(*) FROM likes WHERE item_id = projects.id AND item_type = 'project') as likes_count,
-             (SELECT COUNT(*) FROM comments WHERE project_id = projects.id) as comments_count,
+             (SELECT COUNT(*) FROM comments WHERE deleted_at IS NULL AND project_id = projects.id) as comments_count,
              (SELECT COUNT(*) FROM archives WHERE item_id = projects.id AND item_type = 'project') as archives_count,
              (SELECT COUNT(*) FROM idea_follows WHERE project_id = projects.id AND is_mutual = 1) as follows_count, (
            WITH RECURSIVE idea_tree AS (
@@ -2921,7 +2941,7 @@ app.get('/api/projects', (req, res) => {
              UNION ALL
              SELECT i.id FROM ideas i JOIN idea_tree it ON i.quoted_item_id = it.id AND i.quoted_item_type = 'idea'
            )
-           SELECT COUNT(*) FROM idea_tree
+           SELECT COUNT(*) FROM idea_tree WHERE id IN (SELECT id FROM ideas WHERE project_post_deleted_at IS NULL)
          ) as quotes_count
       FROM projects
       JOIN users ON projects.author_id = users.id
@@ -2930,11 +2950,11 @@ app.get('/api/projects', (req, res) => {
     `).all(`%${search}%`, `%${search}%`, `%${search}%`);
   } else {
     projects = db.prepare(`
-      SELECT projects.id, projects.title, projects.description, projects.image, projects.images, projects.completed_title, projects.completed_description, projects.completed_images, projects.author_id, projects.status, projects.quoted_item_id, projects.quoted_item_type, projects.stage as stage, projects.is_recruitment, projects.is_buyout, projects.buyout_price, projects.is_private, projects.permitted_users, projects.tags, projects.completed_tags, latest_idea_id, strftime('%Y-%m-%dT%H:%M:%SZ', latest_idea_at) as latest_idea_at,
+      SELECT projects.id, projects.title, projects.description, projects.image, projects.images, projects.vision_edited_at, projects.project_edited_at, projects.completed_title, projects.completed_description, projects.completed_images, projects.author_id, projects.status, projects.quoted_item_id, projects.quoted_item_type, projects.stage as stage, projects.is_recruitment, projects.is_buyout, projects.buyout_price, projects.is_private, projects.permitted_users, projects.tags, projects.completed_tags, latest_idea_id, strftime('%Y-%m-%dT%H:%M:%SZ', latest_idea_at) as latest_idea_at,
              strftime('%Y-%m-%dT%H:%M:%SZ', projects.created_at) as created_at,
              users.username as author_name, users.avatar as author_avatar, users.account_type as author_account_type, users.org_plan as author_org_plan,
              (SELECT COUNT(*) FROM likes WHERE item_id = projects.id AND item_type = 'project') as likes_count,
-             (SELECT COUNT(*) FROM comments WHERE project_id = projects.id) as comments_count,
+             (SELECT COUNT(*) FROM comments WHERE deleted_at IS NULL AND project_id = projects.id) as comments_count,
              (SELECT COUNT(*) FROM archives WHERE item_id = projects.id AND item_type = 'project') as archives_count,
              (SELECT COUNT(*) FROM idea_follows WHERE project_id = projects.id AND is_mutual = 1) as follows_count, (
            WITH RECURSIVE idea_tree AS (
@@ -2942,7 +2962,7 @@ app.get('/api/projects', (req, res) => {
              UNION ALL
              SELECT i.id FROM ideas i JOIN idea_tree it ON i.quoted_item_id = it.id AND i.quoted_item_type = 'idea'
            )
-           SELECT COUNT(*) FROM idea_tree
+           SELECT COUNT(*) FROM idea_tree WHERE id IN (SELECT id FROM ideas WHERE project_post_deleted_at IS NULL)
          ) as quotes_count
       FROM projects
       JOIN users ON projects.author_id = users.id
@@ -2970,12 +2990,12 @@ app.get('/api/search', (req, res) => {
   `).all(query);
 
   const projects = db.prepare(`
-    SELECT projects.id, projects.title, projects.description, projects.image, projects.images, projects.completed_title, projects.completed_description, projects.completed_images, projects.author_id, projects.status, projects.quoted_item_id, projects.quoted_item_type, projects.stage as stage, projects.is_recruitment, projects.is_buyout, projects.buyout_price, projects.is_private, projects.permitted_users, projects.tags, projects.completed_tags, latest_idea_id, strftime('%Y-%m-%dT%H:%M:%SZ', latest_idea_at) as latest_idea_at,
+    SELECT projects.id, projects.title, projects.description, projects.image, projects.images, projects.vision_edited_at, projects.project_edited_at, projects.completed_title, projects.completed_description, projects.completed_images, projects.author_id, projects.status, projects.quoted_item_id, projects.quoted_item_type, projects.stage as stage, projects.is_recruitment, projects.is_buyout, projects.buyout_price, projects.is_private, projects.permitted_users, projects.tags, projects.completed_tags, latest_idea_id, strftime('%Y-%m-%dT%H:%M:%SZ', latest_idea_at) as latest_idea_at,
            'project' as item_type,
            strftime('%Y-%m-%dT%H:%M:%SZ', projects.created_at) as created_at,
            users.username as author_name, users.avatar as author_avatar, users.account_type as author_account_type, users.org_plan as author_org_plan,
            (SELECT COUNT(*) FROM likes WHERE item_id = projects.id AND item_type = 'project') as likes_count,
-           (SELECT COUNT(*) FROM comments WHERE project_id = projects.id) as comments_count,
+           (SELECT COUNT(*) FROM comments WHERE deleted_at IS NULL AND project_id = projects.id) as comments_count,
              (SELECT COUNT(*) FROM archives WHERE item_id = projects.id AND item_type = 'project') as archives_count,
            (SELECT COUNT(*) FROM idea_follows WHERE project_id = projects.id AND is_mutual = 1) as follows_count, (
            WITH RECURSIVE idea_tree AS (
@@ -2983,11 +3003,11 @@ app.get('/api/search', (req, res) => {
              UNION ALL
              SELECT i.id FROM ideas i JOIN idea_tree it ON i.quoted_item_id = it.id AND i.quoted_item_type = 'idea'
            )
-           SELECT COUNT(*) FROM idea_tree
+           SELECT COUNT(*) FROM idea_tree WHERE id IN (SELECT id FROM ideas WHERE project_post_deleted_at IS NULL)
          ) as quotes_count
     FROM projects
     JOIN users ON projects.author_id = users.id
-    WHERE (projects.title LIKE ? OR projects.description LIKE ? OR projects.completed_title LIKE ? OR projects.completed_description LIKE ? OR projects.tags LIKE ? OR projects.completed_tags LIKE ? OR users.username LIKE ?)
+    WHERE projects.project_post_deleted_at IS NULL AND (projects.title LIKE ? OR projects.description LIKE ? OR projects.completed_title LIKE ? OR projects.completed_description LIKE ? OR projects.tags LIKE ? OR projects.completed_tags LIKE ? OR users.username LIKE ?)
     ORDER BY projects.created_at DESC
   `).all(query, query, query, query, query, query, query) as any[];
 
@@ -3008,7 +3028,7 @@ app.get('/api/search', (req, res) => {
            strftime('%Y-%m-%dT%H:%M:%SZ', ideas.created_at) as created_at,
            users.username as author_name, users.avatar as author_avatar, users.account_type as author_account_type, users.org_plan as author_org_plan,
            (SELECT COUNT(*) FROM likes WHERE item_id = ideas.id AND item_type = 'idea') as likes_count,
-           (SELECT COUNT(*) FROM comments WHERE idea_id = ideas.id) as comments_count,
+           (SELECT COUNT(*) FROM comments WHERE deleted_at IS NULL AND idea_id = ideas.id) as comments_count,
              (SELECT COUNT(*) FROM archives WHERE item_id = ideas.id AND item_type = 'idea') as archives_count,
            (SELECT COUNT(*) FROM idea_follows WHERE idea_id = ideas.id AND is_mutual = 1) as follows_count, (
            WITH RECURSIVE idea_tree AS (
@@ -3016,11 +3036,11 @@ app.get('/api/search', (req, res) => {
              UNION ALL
              SELECT i.id FROM ideas i JOIN idea_tree it ON i.quoted_item_id = it.id AND i.quoted_item_type = 'idea'
            )
-           SELECT COUNT(*) FROM idea_tree
+           SELECT COUNT(*) FROM idea_tree WHERE id IN (SELECT id FROM ideas WHERE project_post_deleted_at IS NULL)
          ) as quotes_count
     FROM ideas
     JOIN users ON ideas.author_id = users.id
-    WHERE (ideas.title LIKE ? OR ideas.description LIKE ? OR ideas.tags LIKE ? OR users.username LIKE ?) AND ideas.status = 'active'
+    WHERE ideas.project_post_deleted_at IS NULL AND (ideas.title LIKE ? OR ideas.description LIKE ? OR ideas.tags LIKE ? OR users.username LIKE ?) AND ideas.status = 'active'
     ORDER BY ideas.created_at DESC
   `).all(query, query, query, query) as any[];
 
@@ -3761,18 +3781,18 @@ app.get('/api/items/:type/:id/quotes', (req, res) => {
 
   let quotes = db.prepare(`
     WITH RECURSIVE idea_tree AS (
-      SELECT id, title, description, image, author_id, quoted_item_id, quoted_item_type, stage, created_at, is_private, permitted_users, 1 as level
+      SELECT id, title, description, image, author_id, quoted_item_id, quoted_item_type, stage, created_at, is_private, permitted_users, project_post_deleted_at, 1 as level
       FROM ideas
-      WHERE quoted_item_id = ? AND quoted_item_type = ? AND status = 'active'
+      WHERE quoted_item_id = ? AND quoted_item_type = ? AND status IN ('active','deleted')
 
       UNION ALL
 
-      SELECT i.id, i.title, i.description, i.image, i.author_id, i.quoted_item_id, i.quoted_item_type, i.stage, i.created_at, i.is_private, i.permitted_users, it.level + 1
+      SELECT i.id, i.title, i.description, i.image, i.author_id, i.quoted_item_id, i.quoted_item_type, i.stage, i.created_at, i.is_private, i.permitted_users, i.project_post_deleted_at, it.level + 1
       FROM ideas i
       JOIN idea_tree it ON i.quoted_item_id = it.id AND i.quoted_item_type = 'idea'
-      WHERE i.status = 'active'
+      WHERE i.status IN ('active','deleted')
     )
-    SELECT t.id, t.title, t.description, t.image, t.author_id, t.quoted_item_id, t.quoted_item_type, t.stage, t.is_private, t.permitted_users, 'idea' as type,
+    SELECT t.id, t.title, t.description, t.image, t.author_id, t.quoted_item_id, t.quoted_item_type, t.stage, t.is_private, t.permitted_users, t.project_post_deleted_at, 'idea' as type,
            strftime('%Y-%m-%dT%H:%M:%SZ', t.created_at) as created_at,
            users.username as author_name, users.avatar as author_avatar, users.account_type as author_account_type, users.org_plan as author_org_plan,
            q.title as quoted_item_title
@@ -3783,6 +3803,7 @@ app.get('/api/items/:type/:id/quotes', (req, res) => {
 
   const requestingUserId = req.query.user_id ? Number(req.query.user_id) : null;
   quotes = quotes.filter(q => {
+    if(q.project_post_deleted_at)return false;
     if (q.is_private !== 1) return true;
     if (!requestingUserId) return false;
     if (q.author_id === requestingUserId || authorId === requestingUserId) return true;
@@ -3820,16 +3841,16 @@ app.get('/api/items/:type/:id/quotes', (req, res) => {
 app.get('/api/projects/:id', (req, res) => {
   const user_id = req.query.user_id || 0;
   const project = db.prepare(`
-    SELECT projects.id, projects.title, projects.description, projects.image, projects.images, projects.author_id, projects.quoted_item_id, projects.quoted_item_type, 
+    SELECT projects.id, projects.title, projects.description, projects.image, projects.images, projects.vision_edited_at, projects.project_edited_at, projects.status, projects.author_id, projects.quoted_item_id, projects.quoted_item_type,
            projects.stage as author_stage, projects.latest_idea_id,
-           projects.stage as stage,
+           COALESCE((SELECT ROUND(AVG(se.stage)) FROM stage_evaluations se WHERE se.item_id = projects.id AND se.item_type = 'project'), projects.stage) as stage,
            (SELECT COALESCE((SELECT i.stage FROM ideas i WHERE i.id = projects.quoted_item_id AND projects.quoted_item_type = 'idea'), (SELECT p.stage FROM projects p WHERE p.id = projects.quoted_item_id AND projects.quoted_item_type = 'project'), 1)) as min_stage,
-           NULL as user_evaluated_stage,
+           (SELECT se.stage FROM stage_evaluations se WHERE se.item_id = projects.id AND se.item_type = 'project' AND se.user_id = ?) as user_evaluated_stage,
            strftime('%Y-%m-%dT%H:%M:%SZ', projects.latest_idea_at) as latest_idea_at, projects.is_recruitment, projects.is_buyout, projects.buyout_price, projects.is_private, projects.permitted_users,
            strftime('%Y-%m-%dT%H:%M:%SZ', projects.created_at) as created_at,
            users.username as author_name, users.avatar as author_avatar, users.account_type as author_account_type, users.org_plan as author_org_plan,
            (SELECT COUNT(*) FROM likes WHERE item_id = projects.id AND item_type = 'project') as likes_count,
-           (SELECT COUNT(*) FROM comments WHERE project_id = projects.id) as comments_count,
+           (SELECT COUNT(*) FROM comments WHERE deleted_at IS NULL AND project_id = projects.id) as comments_count,
            (SELECT COUNT(*) FROM archives WHERE item_id = projects.id AND item_type = 'project') as archives_count,
            (SELECT COUNT(*) FROM idea_follows WHERE project_id = projects.id AND is_mutual = 1) as follows_count, (
            WITH RECURSIVE idea_tree AS (
@@ -3837,17 +3858,17 @@ app.get('/api/projects/:id', (req, res) => {
              UNION ALL
              SELECT i.id FROM ideas i JOIN idea_tree it ON i.quoted_item_id = it.id AND i.quoted_item_type = 'idea'
            )
-           SELECT COUNT(*) FROM idea_tree
+           SELECT COUNT(*) FROM idea_tree WHERE id IN (SELECT id FROM ideas WHERE project_post_deleted_at IS NULL)
          ) as quotes_count
     FROM projects
     JOIN users ON projects.author_id = users.id
     WHERE projects.id = ?
-  `).get(req.params.id);
+  `).get(user_id, req.params.id);
   
   if (!project) return res.status(404).json({ error: 'Not found' });
   
   const comments = db.prepare(`
-    SELECT comments.id, comments.content, comments.user_id, comments.project_id, comments.parent_id,
+    SELECT comments.id, comments.content, comments.edited_at, comments.deleted_at, comments.user_id, comments.project_id, comments.parent_id,
            strftime('%Y-%m-%dT%H:%M:%SZ', comments.created_at) as created_at,
            users.username as author_name, users.avatar as author_avatar, users.account_type as author_account_type, users.org_plan as author_org_plan
     FROM comments
@@ -3862,17 +3883,17 @@ app.get('/api/projects/:id', (req, res) => {
 app.get('/api/ideas/:id', (req, res) => {
   const user_id = req.query.user_id || 0;
   const idea = db.prepare(`
-    SELECT ideas.id, ideas.title, ideas.description, ideas.image, ideas.author_id, ideas.quoted_item_id, ideas.quoted_item_type, 
+    SELECT ideas.id, ideas.title, ideas.description, ideas.image, ideas.images, ideas.vision_edited_at, ideas.project_edited_at, ideas.status, ideas.author_id, ideas.quoted_item_id, ideas.quoted_item_type,
            ideas.stage as author_stage,
-           ideas.stage as stage,
+           COALESCE((SELECT ROUND(AVG(se.stage)) FROM stage_evaluations se WHERE se.item_id = ideas.id AND se.item_type = 'idea'), ideas.stage) as stage,
            (SELECT COALESCE((SELECT i.stage FROM ideas i WHERE i.id = ideas.quoted_item_id AND ideas.quoted_item_type = 'idea'), (SELECT p.stage FROM projects p WHERE p.id = ideas.quoted_item_id AND ideas.quoted_item_type = 'project'), 1)) as min_stage,
-           NULL as user_evaluated_stage,
+           (SELECT se.stage FROM stage_evaluations se WHERE se.item_id = ideas.id AND se.item_type = 'idea' AND se.user_id = ?) as user_evaluated_stage,
            ideas.is_recruitment, ideas.is_buyout, ideas.buyout_price, ideas.is_private, ideas.permitted_users, ideas.tags,
            ideas.version, strftime('%Y-%m-%dT%H:%M:%SZ', ideas.updated_at) as updated_at, ideas.proposed_type, ideas.remand_reason, ideas.remand_changes, ideas.remand_notes,
            strftime('%Y-%m-%dT%H:%M:%SZ', ideas.created_at) as created_at,
            users.username as author_name, users.avatar as author_avatar, users.account_type as author_account_type, users.org_plan as author_org_plan,
            (SELECT COUNT(*) FROM likes WHERE item_id = ideas.id AND item_type = 'idea') as likes_count,
-           (SELECT COUNT(*) FROM comments WHERE idea_id = ideas.id) as comments_count,
+           (SELECT COUNT(*) FROM comments WHERE deleted_at IS NULL AND idea_id = ideas.id) as comments_count,
            (SELECT COUNT(*) FROM archives WHERE item_id = ideas.id AND item_type = 'idea') as archives_count,
            (SELECT COUNT(*) FROM idea_follows WHERE idea_id = ideas.id AND is_mutual = 1) as follows_count, (
            WITH RECURSIVE idea_tree AS (
@@ -3880,12 +3901,12 @@ app.get('/api/ideas/:id', (req, res) => {
              UNION ALL
              SELECT i.id FROM ideas i JOIN idea_tree it ON i.quoted_item_id = it.id AND i.quoted_item_type = 'idea'
            )
-           SELECT COUNT(*) FROM idea_tree
+           SELECT COUNT(*) FROM idea_tree WHERE id IN (SELECT id FROM ideas WHERE project_post_deleted_at IS NULL)
          ) as quotes_count
     FROM ideas
     JOIN users ON ideas.author_id = users.id
     WHERE ideas.id = ?
-  `).get(req.params.id);
+  `).get(user_id, req.params.id);
   
   if (!idea) return res.status(404).json({ error: 'Not found' });
 
@@ -3896,7 +3917,7 @@ app.get('/api/ideas/:id', (req, res) => {
   }
   
   const comments = db.prepare(`
-    SELECT comments.id, comments.content, comments.user_id, comments.idea_id, comments.parent_id,
+    SELECT comments.id, comments.content, comments.edited_at, comments.deleted_at, comments.user_id, comments.idea_id, comments.parent_id,
            strftime('%Y-%m-%dT%H:%M:%SZ', comments.created_at) as created_at,
            users.username as author_name, users.avatar as author_avatar, users.account_type as author_account_type, users.org_plan as author_org_plan
     FROM comments
@@ -3917,10 +3938,14 @@ app.post('/api/ideas/:id/comments', (req, res) => {
     return res.status(400).json({ error: 'User not found' });
   }
 
+  if(!db.prepare('SELECT id FROM ideas WHERE id=?').get(req.params.id))return res.status(404).json({error:'この投稿は削除されたか、存在しません。'});
+  if(typeof content!=='string'||!content.trim())return res.status(400).json({error:'返信を入力してください。'});
+  if(parent_id&&!db.prepare('SELECT id FROM comments WHERE id=? AND idea_id=? AND deleted_at IS NULL').get(parent_id,req.params.id))return res.status(400).json({error:'返信先がこの投稿に属していません。'});
+
   try {
     const info = db.prepare('INSERT INTO comments (idea_id, user_id, content, parent_id) VALUES (?, ?, ?, ?)').run(idea_id, user_id, content, parent_id);
     const comment = db.prepare(`
-      SELECT comments.id, comments.content, comments.user_id, comments.idea_id, comments.parent_id,
+      SELECT comments.id, comments.content, comments.edited_at, comments.deleted_at, comments.user_id, comments.idea_id, comments.parent_id,
              strftime('%Y-%m-%dT%H:%M:%SZ', comments.created_at) as created_at,
              users.username as author_name, users.avatar as author_avatar, users.account_type as author_account_type, users.org_plan as author_org_plan
       FROM comments
@@ -3929,6 +3954,7 @@ app.post('/api/ideas/:id/comments', (req, res) => {
     `).get(info.lastInsertRowid);
     
     io.emit(`idea:${idea_id}:comment`, comment);
+    io.emit('vision:changed',{type:'idea',id:Number(req.params.id)});
     res.json(comment);
   } catch (e) {
     res.status(500).json({ error: 'Failed to post comment' });
@@ -3944,10 +3970,14 @@ app.post('/api/projects/:id/comments', (req, res) => {
     return res.status(400).json({ error: 'User not found' });
   }
 
+  if(!db.prepare('SELECT id FROM projects WHERE id=?').get(req.params.id))return res.status(404).json({error:'この投稿は削除されたか、存在しません。'});
+  if(typeof content!=='string'||!content.trim())return res.status(400).json({error:'返信を入力してください。'});
+  if(parent_id&&!db.prepare('SELECT id FROM comments WHERE id=? AND project_id=? AND deleted_at IS NULL').get(parent_id,req.params.id))return res.status(400).json({error:'返信先がこの投稿に属していません。'});
+
   try {
     const info = db.prepare('INSERT INTO comments (project_id, user_id, content, parent_id) VALUES (?, ?, ?, ?)').run(project_id, user_id, content, parent_id);
     const comment = db.prepare(`
-      SELECT comments.id, comments.content, comments.user_id, comments.project_id, comments.parent_id,
+      SELECT comments.id, comments.content, comments.edited_at, comments.deleted_at, comments.user_id, comments.project_id, comments.parent_id,
              strftime('%Y-%m-%dT%H:%M:%SZ', comments.created_at) as created_at,
              users.username as author_name, users.avatar as author_avatar, users.account_type as author_account_type, users.org_plan as author_org_plan
       FROM comments
@@ -3956,6 +3986,7 @@ app.post('/api/projects/:id/comments', (req, res) => {
     `).get(info.lastInsertRowid);
     
     io.emit(`project:${project_id}:comment`, comment);
+    io.emit('vision:changed',{type:'project',id:Number(req.params.id)});
     res.json(comment);
   } catch (e) {
     res.status(500).json({ error: 'Failed to post comment' });
@@ -3983,7 +4014,7 @@ app.post('/api/projects/:id/comments', (req, res) => {
         ORDER BY i.created_at DESC
       `).all(recruitmentId, orgId || 0, recruitmentId, recruitmentId);
 
-      res.json(ideas);
+      res.json(ideas.filter((i:any)=>!i.project_post_deleted_at));
     } catch (e) {
       console.error(e);
       res.status(500).json({ error: 'Internal server error' });
@@ -5106,7 +5137,7 @@ ${type === 'nda' ? `
   });
 
   // Get single contract detail with version history
-  app.get('/api/contracts/:id', (req, res) => {
+  app.get('/api/contracts/:id(-?[0-9]+)', (req, res) => {
     try {
       const contractId = req.params.id;
       if (Number(contractId) < 0) {
@@ -5381,9 +5412,9 @@ ${type === 'nda' ? `
       }
 
       // Requirement 24 Rule 10: Agreed contracts cannot be deleted; only archived or voided
-      const agreementsCount = (db.prepare('SELECT COUNT(*) as cnt FROM contract_agreements WHERE contract_id = ? AND status = "agreed"').get(contractId) as any)?.cnt || 0;
+      const agreementsCount = (db.prepare("SELECT COUNT(*) as cnt FROM contract_agreements WHERE contract_id = ? AND status = 'agreed'").get(contractId) as any)?.cnt || 0;
       if (agreementsCount > 0) {
-        db.prepare('UPDATE contracts SET status = "archived", updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(contractId);
+        db.prepare("UPDATE contracts SET status = 'archived', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(contractId);
         return res.json({
           success: true,
           is_archived: true,
@@ -8035,8 +8066,10 @@ app.post('/api/buyouts/:id/transfer', (req, res) => {
       return res.status(400).json({ error: 'User not found' });
     }
   
+    let inherited;
+    try{inherited=validateInheritedVision(db,Number(author_id),req.body.inherited_vision);if(inherited&&!Number(is_recruitment))return res.status(400).json({error:'引き継ぎはProject作成時に指定してください。'});}catch(e:any){return res.status(e.status||400).json({error:e.message});}
     try {
-      const info = db.prepare('INSERT INTO projects (title, description, image, author_id, quoted_item_id, quoted_item_type, stage, is_private, permitted_users, tags, is_recruitment) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(
+      const info = db.prepare('INSERT INTO projects (title, description, image, author_id, quoted_item_id, quoted_item_type, stage, is_private, permitted_users, tags, is_recruitment, inherited_vision_id, inherited_vision_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(
         title || 'Untitled Vision', 
         description || '', 
         image, 
@@ -8047,7 +8080,9 @@ app.post('/api/buyouts/:id/transfer', (req, res) => {
         is_private ? 1 : 0, 
         permitted_users, 
         tags, 
-        is_recruitment ? 1 : 0
+        is_recruitment ? 1 : 0,
+        inherited?.id??null,
+        inherited?.type??null
       );
       
       const newProjectId = info.lastInsertRowid;
@@ -8720,7 +8755,7 @@ app.get('/api/network/:id', (req, res) => {
       const item = db.prepare(`
         SELECT i.*, u.username as author_name, u.avatar as author_avatar,
         (SELECT COUNT(*) FROM likes WHERE item_id = i.id AND item_type = ?) as likes_count,
-        (SELECT COUNT(*) FROM comments WHERE ${parentType === 'idea' ? 'idea_id' : 'project_id'} = i.id) as comments_count,
+        (SELECT COUNT(*) FROM comments WHERE deleted_at IS NULL AND ${parentType === 'idea' ? 'idea_id' : 'project_id'} = i.id) as comments_count,
         (SELECT COUNT(*) FROM archives WHERE item_id = i.id AND item_type = ?) as archives_count
         FROM ${table} i
         JOIN users u ON i.author_id = u.id
@@ -8816,93 +8851,13 @@ app.get('/api/network/:id', (req, res) => {
   }
 });
 
-// Memo API
-app.get('/api/memo_folders', (req, res) => {
-  const userId = req.query.user_id;
-  if (!userId) return res.status(400).json({ error: 'user_id required' });
-  try {
-    const folders = db.prepare('SELECT * FROM memo_folders WHERE user_id = ? ORDER BY created_at DESC').all(userId);
-    res.json(folders);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.post('/api/memo_folders', (req, res) => {
-  const { user_id, name } = req.body;
-  if (!user_id || !name) return res.status(400).json({ error: 'user_id and name required' });
-  try {
-    const stmt = db.prepare('INSERT INTO memo_folders (user_id, name, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)');
-    const info = stmt.run(user_id, name);
-    res.json({ id: info.lastInsertRowid });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.delete('/api/memo_folders/:id', (req, res) => {
-  const folderId = req.params.id;
-  try {
-    db.prepare('DELETE FROM memo_folders WHERE id = ?').run(folderId);
-    res.json({ success: true });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.get('/api/memos', (req, res) => {
-  const projectId = req.query.project_id;
-  const folderId = req.query.folder_id;
-  if (!projectId && !folderId) return res.status(400).json({ error: 'project_id or folder_id required' });
-  try {
-    if (projectId) {
-      const memos = db.prepare('SELECT * FROM memos WHERE project_id = ? ORDER BY updated_at DESC').all(projectId);
-      res.json(memos);
-    } else {
-      const memos = db.prepare('SELECT * FROM memos WHERE folder_id = ? ORDER BY updated_at DESC').all(folderId);
-      res.json(memos);
-    }
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.post('/api/memos', (req, res) => {
-  const { user_id, project_id, folder_id, title, content } = req.body;
-  if (!user_id || (!project_id && !folder_id)) return res.status(400).json({ error: 'user_id and either project_id or folder_id required' });
-  try {
-    const stmt = db.prepare('INSERT INTO memos (user_id, project_id, folder_id, title, content, created_at, updated_at) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)');
-    const info = stmt.run(user_id, project_id || null, folder_id || null, title || 'New Note', content || '');
-    res.json({ id: info.lastInsertRowid });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.put('/api/memos/:id', (req, res) => {
-  const memoId = req.params.id;
-  const { title, content } = req.body;
-  try {
-    const stmt = db.prepare('UPDATE memos SET title = ?, content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
-    stmt.run(title, content, memoId);
-    res.json({ success: true });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.delete('/api/memos/:id', (req, res) => {
-  const memoId = req.params.id;
-  try {
-    db.prepare('DELETE FROM memos WHERE id = ?').run(memoId);
-    res.json({ success: true });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
+// The standalone memo utility has been retired; stored rows are retained.
+app.use(['/api/memos','/api/memo_folders'], (_req, res) => {
+  res.status(410).json({error:'メモ管理機能は廃止されました。'});
 });
 
 // --- Stripe API ---
-app.get('/api/test', (req, res) => res.json({ msg: 'working version 3' }));
+app.get('/api/test', (req, res) => res.json({ msg: 'working version 3', validation_id: process.env.EHUB_VALIDATION_ID }));
 app.get('/api/stripe/status', (req, res) => {
   try {
     const userId = req.query.user_id;
@@ -9270,12 +9225,7 @@ app.post('/api/stripe/create-checkout-buyout', async (req, res) => {
   }
 });
 
-app.post('/api/stripe/webhook', express.raw({type: 'application/json'}), (req, res) => {
-  // Simple webhook handling (in a real app, verify signature)
-  try {
-    const event = req.body; // In dev, we can just trust it if signature verification isn't setup. Or parse json if it's already parsed.
-    // express.raw won't work easily if body-parser json is already globally configured.
-    // Assuming req.body is already parsed JSON.
+function handleCheckoutEvent(event: any) {
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
       const projectId = session.metadata?.project_id;
@@ -9318,12 +9268,7 @@ app.post('/api/stripe/webhook', express.raw({type: 'application/json'}), (req, r
         }
       }
     }
-    res.json({received: true});
-  } catch(e) {
-    res.status(400).send(`Webhook Error: ${e}`);
-  }
-});
-
+}
 
 app.post('/api/items/:itemType/:itemId/stage_evaluation', (req, res) => {
   const { itemType, itemId } = req.params;
@@ -9334,6 +9279,10 @@ app.post('/api/items/:itemType/:itemId/stage_evaluation', (req, res) => {
   user_id = parseInt(user_id, 10);
   stage = parseInt(stage, 10);
   const parsedItemId = parseInt(itemId, 10);
+
+  if (!Number.isInteger(stage) || stage < 1 || stage > 6) {
+    return res.status(400).json({ error: 'Stage must be between 1 and 6' });
+  }
 
   if (itemType !== 'idea' && itemType !== 'project') {
     return res.status(400).json({ error: 'Invalid item type' });
@@ -9823,15 +9772,13 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
       return res.status(400).send(`Webhook Error: ${err.message}`);
     }
   } else {
-    // 開発テストモード (署名なしの直接JSONパース)
-    try {
-      event = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-    } catch (e) {
-      return res.status(400).send('Invalid payload');
-    }
+    return res.status(400).json({ error: 'Webhook signature and configuration are required' });
   }
 
   try {
+    if (!event.id || !event.type || !event.data?.object) return res.status(400).json({ error: 'Invalid event' });
+    if (db.prepare('SELECT id FROM stripe_processed_events WHERE id = ?').get(event.id)) return res.json({ received: true, duplicate: true });
+    db.exec('BEGIN');
     const eventType = event.type;
     const dataObject = event.data?.object;
 
@@ -9863,11 +9810,8 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
 
             console.log(`[Webhook] User ${userId} upgraded to ${targetPlan}`);
           }
-        } else if (metadata.type === 'project_contract') {
-          const contractId = Number(metadata.project_contract_id);
-          if (contractId) {
-            activateProjectContract(contractId, session.payment_intent || session.id);
-          }
+        } else {
+          handleCheckoutEvent(event);
         }
         break;
       }
@@ -9890,7 +9834,7 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
           `).run(status, isCancelAtPeriodEnd ? 1 : 0, subscription.current_period_end, customerId);
 
           if (status === 'canceled' || status === 'unpaid') {
-            db.prepare('UPDATE users SET plan = "free" WHERE id = ?').run(subRecord.user_id);
+            db.prepare("UPDATE users SET plan = 'free' WHERE id = ?").run(subRecord.user_id);
           }
         }
         break;
@@ -9901,7 +9845,7 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
         const customerId = subscription.customer;
         const subRecord = db.prepare('SELECT user_id FROM user_subscriptions WHERE stripe_customer_id = ?').get(customerId) as any;
         if (subRecord) {
-          db.prepare('UPDATE users SET plan = "free" WHERE id = ?').run(subRecord.user_id);
+          db.prepare("UPDATE users SET plan = 'free' WHERE id = ?").run(subRecord.user_id);
           db.prepare(`
             UPDATE user_subscriptions
             SET plan = 'free', status = 'canceled', updated_at = CURRENT_TIMESTAMP
@@ -9913,8 +9857,11 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
       }
     }
 
+    db.prepare('INSERT INTO stripe_processed_events (id) VALUES (?)').run(event.id);
+    db.exec('COMMIT');
     res.json({ received: true });
   } catch (err: any) {
+    if (db.inTransaction) db.exec('ROLLBACK');
     console.error('Error handling webhook event:', err);
     res.status(500).json({ error: 'Webhook handler failed' });
   }
@@ -10202,6 +10149,9 @@ app.put(['/api/users/:id/plan', '/api/users/:id/update-plan'], (req, res) => {
   }
 });
 
+installVision(app, () => db, change => io.emit('vision:changed',change));
+installBusinessCards(app, () => db, (target, from) => io.to(`user:${target}`).emit('notification', {type:'new_follower',from_user_id:from}));
+
 // Unhandled API routes fallback
 app.all(['/api', '/api/*'], (req, res) => {
   res.status(404).json({ error: 'API endpoint not found' });
@@ -10223,7 +10173,7 @@ async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
       root: projectRoot,
-      server: { middlewareMode: true },
+      server: { middlewareMode: true, hmr: { server } },
       appType: 'spa',
     });
     app.use(vite.middlewares);
@@ -10235,7 +10185,7 @@ async function startServer() {
     });
   }
 
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT || 3000);
   server.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
   });

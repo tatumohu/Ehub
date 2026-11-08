@@ -1,9 +1,10 @@
+import BusinessCardPanel from '../components/business-cards/BusinessCardPanel';
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { Country, State } from 'country-state-city';
 import { STAGES } from '../components/SimpleStageIndicator';
-import { User, Building2, Landmark, Settings, LogOut, Shield, Bell, Moon, Globe, ChevronRight, Send, ChevronLeft, Camera, Menu, X, UserCheck, UserPlus, Heart, MessageSquare, Users, SquarePlus, Bookmark, Lock, ShoppingBag, Star, StarHalf, CheckCircle, CheckCircle2, ExternalLink, Crown, MapPin, Sparkles, Lightbulb, Trophy, FolderKanban } from 'lucide-react';
+import { User, Building2, Landmark, Settings, LogOut, Shield, Bell, Globe, ChevronRight, Send, ChevronLeft, Camera, Menu, X, UserCheck, UserPlus, Heart, MessageSquare, Users, SquarePlus, Bookmark, Lock, ShoppingBag, Star, StarHalf, CheckCircle, CheckCircle2, ExternalLink, Crown, MapPin, Sparkles, Lightbulb, Trophy, FolderKanban } from 'lucide-react';
 
 import OrgBadge from '../components/OrgBadge';
 import AccountTypeBadge from '../components/AccountTypeBadge';
@@ -29,7 +30,7 @@ export default function Profile() {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { user: currentUser, logout, updateUser, language, setLanguage, theme, setTheme } = useAppContext();
+  const { user: currentUser, logout, updateUser, language, setLanguage } = useAppContext();
   const [activeTab, setActiveTab] = useState<'ema' | 'idea' | 'joint' | 'muni_projects' | 'muni_visions' | 'muni_recruitment' | 'muni_achievements' | 'corp_projects' | 'corp_visions' | 'corp_proposals' | 'corp_achievements'>('ema');
   const [tabItems, setTabItems] = useState<any[]>([]);
   const [isLoadingTab, setIsLoadingTab] = useState(false);
@@ -54,6 +55,18 @@ export default function Profile() {
   const [editCompanyLocation, setEditCompanyLocation] = useState("");
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [activeSettingTab, setActiveSettingTab] = useState<string | null>(null);
+  useEffect(() => {
+    if (!isSettingsOpen) return;
+    const syncSettingsLayout = () => {
+      if (window.innerWidth >= 768) {
+        setActiveSettingTab(current => current ?? 'Privacy & Security');
+      }
+    };
+    syncSettingsLayout();
+    window.addEventListener('resize', syncSettingsLayout);
+    return () => window.removeEventListener('resize', syncSettingsLayout);
+  }, [isSettingsOpen]);
+
   const [settingsState, setSettingsState] = useState({
     privateProfile: false,
     showActivityStatus: true,
@@ -263,7 +276,10 @@ export default function Profile() {
   };
   const [isLoadingList, setIsLoadingList] = useState(false);
   const [listType, setListType] = useState<string>('subscriptions');
+  const [listError, setListError] = useState('');
+  const [listReload, setListReload] = useState(0);
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
+  const [cardRefresh, setCardRefresh] = useState(0);
   const [stats, setStats] = useState<any>(null);
   const [profileUser, setProfileUser] = useState<any>(null);
   const [isSubscribed, setIsSubscribed] = useState(false);
@@ -282,24 +298,41 @@ export default function Profile() {
         })
         .catch(console.error);
     }
-  }, [targetUserId, id, currentUser, isOwnProfile]);
+  }, [targetUserId, id, currentUser, isOwnProfile, cardRefresh]);
 
   useEffect(() => {
-    if (targetUserId && isMenuOpen) {
-      setIsLoadingList(true);
-      setSubscriptions([]);
-      
-      let fetchEndpoint = listType;
-      
-      fetch(`/api/users/${targetUserId}/${fetchEndpoint}${currentUser ? `?user_id=${encodeURIComponent(currentUser.id)}` : ''}`)
-        .then(res => res.json())
-        .then(data => {
-          setSubscriptions(data);
-          setIsLoadingList(false);
-        })
-        .catch(() => setIsLoadingList(false));
-    }
-  }, [targetUserId, listType, isMenuOpen]);
+    if (!targetUserId || !isMenuOpen) return;
+    const controller = new AbortController();
+    const collected = listType === 'business-cards';
+    setIsLoadingList(true);
+    setSubscriptions([]);
+    setListError('');
+    const load = async () => {
+      try {
+        if (collected && (!isOwnProfile || !currentUser)) throw new Error(language === 'ja' ? '自分のProfileから確認してください。' : 'Open your own profile.');
+        const url = collected ? '/api/business-cards/collection' : `/api/users/${targetUserId}/${listType}${currentUser ? `?user_id=${encodeURIComponent(currentUser.id)}` : ''}`;
+        const res = await fetch(url, {signal: controller.signal, ...(collected ? {headers: {'x-user-id': String(currentUser!.id)}} : {})});
+        if (!res.ok) throw new Error(language === 'ja' ? '一覧を読み込めませんでした。もう一度お試しください。' : 'Could not load the list. Please try again.');
+        const data = await res.json();
+        if (!Array.isArray(data)) throw new Error(language === 'ja' ? '一覧の形式が不正です。' : 'Invalid list response.');
+        if (!controller.signal.aborted) setSubscriptions(collected ? data.map(card => ({...card, id: card.user_id})) : data);
+      } catch (error: any) {
+        if (!controller.signal.aborted) setListError(error.message);
+      } finally {
+        if (!controller.signal.aborted) setIsLoadingList(false);
+      }
+    };
+    load();
+    return () => controller.abort();
+  }, [targetUserId, listType, isMenuOpen, currentUser?.id, isOwnProfile, language, cardRefresh, listReload]);
+
+  const selectListTab = (type: string) => {
+    if (type === listType) return;
+    setSubscriptions([]);
+    setIsLoadingList(true);
+    setListError('');
+    setListType(type);
+  };
 
   useEffect(() => {
     if (targetUserId) {
@@ -478,7 +511,6 @@ export default function Profile() {
     { id: 'Privacy & Security', icon: <Shield className="w-5 h-5 text-emerald-500" />, label: language === 'ja' ? 'プライバシーとセキュリティ' : 'Privacy & Security', description: language === 'ja' ? 'データとアカウントのセキュリティを管理' : 'Manage your data and account security' },
     { id: 'Notifications', icon: <Bell className="w-5 h-5 text-purple-500" />, label: language === 'ja' ? '通知' : 'Notifications', description: language === 'ja' ? 'アラートの受信方法を設定' : 'Configure how you receive alerts' },
     { id: 'Language', icon: <Globe className="w-5 h-5 text-indigo-500" />, label: language === 'ja' ? '言語 (Language)' : 'Language', description: language === 'ja' ? '希望の言語を選択' : 'Choose your preferred language' },
-    { id: 'Appearance', icon: <Moon className="w-5 h-5 text-slate-400" />, label: language === 'ja' ? '外観' : 'Appearance', description: language === 'ja' ? 'ライト/ダークテーマの切り替え' : 'Switch between light and dark themes' },
   ];
 
   return (
@@ -493,29 +525,46 @@ export default function Profile() {
               onClick={() => setIsMenuOpen(false)}
               className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             />
-            <div className="fixed inset-0 flex items-center justify-center p-4 pt-[130px] pb-[80px] md:pb-[100px] pointer-events-none z-[90]">
+            <div className="fixed inset-0 flex items-center justify-center px-3 sm:px-4 pt-[clamp(4rem,14vh,8.125rem)] pb-[clamp(5rem,10vh,6.25rem)] pointer-events-none z-[90]">
               <div
+                role="dialog" aria-modal="true" aria-labelledby="profile-user-list-title" data-testid="profile-user-list-dialog"
                 className="relative w-full max-w-lg bg-white dark:bg-[#0b0f19]/90 backdrop-blur-2xl border border-slate-200 dark:border-cyan-500/30 rounded-3xl p-6 shadow-2xl dark:shadow-[0_8px_32px_0_rgba(0,0,0,0.6)] pointer-events-auto overflow-hidden flex flex-col max-h-full text-slate-900 dark:text-white"
               >
-                <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center justify-between gap-3 mb-4 shrink-0">
                   <div className="flex items-center gap-3">
-                    <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <h2 id="profile-user-list-title" className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
                       <UserCheck className="w-5 h-5 text-red-500" />
-                      {listType === 'subscriptions' ? (language === 'ja' ? 'フォロー中' : 'Following') : 
+                      {listType === 'business-cards' ? (language === 'ja' ? '取り込んだ名刺' : 'Collected cards') : listType === 'subscriptions' ? (language === 'ja' ? 'フォロー中' : 'Following') :
                        listType === 'subscribers' ? (language === 'ja' ? 'フォロワー' : 'Followers') : 
                        listType === 'joint' ? 'Joint' : 
                        listType === 'idea' ? 'Idea' : 'Vision'}
                     </h2>
                   </div>
-                  <button onClick={() => {
+                  <button aria-label={language === 'ja' ? 'ユーザー一覧を閉じる' : 'Close user list'} onClick={() => {
                     setIsMenuOpen(false);
                   }} className="text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">
                     <X className="w-6 h-6" />
                   </button>
                 </div>
 
-                <div className="space-y-4 overflow-y-auto flex-1 scrollbar-hide">
-                  {isLoadingList ? (
+                {isOwnProfile && (listType === 'subscriptions' || listType === 'business-cards') && (
+                  <div role="tablist" aria-label={language === 'ja' ? 'フォロー中と取り込んだ名刺' : 'Following and collected cards'} className="mb-4 grid shrink-0 grid-cols-2 gap-2">
+                    {([{type:'subscriptions',label:language === 'ja' ? 'フォロー中' : 'Following'}, {type:'business-cards',label:language === 'ja' ? '取り込んだ名刺' : 'Collected cards'}]).map(tab => (
+                      <button key={tab.type} type="button" role="tab" id={`profile-list-tab-${tab.type}`} aria-selected={listType === tab.type} aria-controls="profile-user-list-panel" tabIndex={listType === tab.type ? 0 : -1}
+                        onClick={() => selectListTab(tab.type)}
+                        onKeyDown={event => {
+                          if (!['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
+                          event.preventDefault();
+                          const next = event.key === 'Home' ? 'subscriptions' : event.key === 'End' ? 'business-cards' : listType === 'subscriptions' ? 'business-cards' : 'subscriptions';
+                          selectListTab(next);
+                          document.getElementById(`profile-list-tab-${next}`)?.focus();
+                        }}
+                        className={`min-w-0 rounded-xl border px-2 py-2.5 text-xs sm:text-sm font-semibold ${listType === tab.type ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}>{tab.label}</button>
+                    ))}
+                  </div>
+                )}
+                <div id="profile-user-list-panel" role={isOwnProfile && (listType === 'subscriptions' || listType === 'business-cards') ? 'tabpanel' : undefined} aria-labelledby={isOwnProfile && (listType === 'subscriptions' || listType === 'business-cards') ? `profile-list-tab-${listType}` : undefined} aria-busy={isLoadingList} className="min-h-0 space-y-4 overflow-y-auto flex-1 scrollbar-hide">
+                  {listError ? <div role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{listError}<button type="button" onClick={() => {setIsLoadingList(true); setListError(''); setListReload(v => v + 1);}} className="mt-2 block rounded-lg border border-red-200 px-3 py-2 font-bold">{language === 'ja' ? '再読み込み' : 'Retry'}</button></div> : isLoadingList ? (
                     <div className="flex flex-col items-center justify-center py-20 gap-4">
                       <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
                       <p className="text-slate-500 text-sm">Loading {listType === 'idea' ? 'ideas' : listType}...</p>
@@ -529,6 +578,7 @@ export default function Profile() {
                           <Link 
                             key={`${item.type}-${item.id}`}
                             to={targetUrl}
+                        state={{section:Number(item.is_buyout)===1?'store':Number(item.is_recruitment)===1?'project':undefined}}
                             onClick={() => setIsMenuOpen(false)}
                             className="block group relative"
                           >
@@ -583,18 +633,18 @@ export default function Profile() {
                       </div>
                     ) : (
                       subscriptions.map((sub) => (
-                        <div 
-                          key={sub.id} 
+                        <button type="button"
+                          key={sub.id} data-profile-list-user={sub.id}
                           onClick={() => handleUserClick(sub)}
-                          className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-950/60 backdrop-blur-md hover:bg-slate-100 dark:hover:bg-slate-900/80 rounded-xl border border-slate-200 dark:border-cyan-500/20 transition-all cursor-pointer group"
+                          className="w-full text-left flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-950/60 backdrop-blur-md hover:bg-slate-100 dark:hover:bg-slate-900/80 rounded-xl border border-slate-200 dark:border-cyan-500/20 transition-all cursor-pointer group"
                         >
-                          <img src={sub.avatar || undefined} alt="" className={`w-10 h-10 rounded-full ${getAccountTypeBorderClass(sub.account_type, 'border-2')} object-cover`} />
+                          <img src={sub.avatar || undefined} alt="" className={`w-10 h-10 shrink-0 rounded-full ${getAccountTypeBorderClass(sub.account_type, 'border-2')} object-cover`} />
                           <div className="flex-1 min-w-0">
                             <p className="text-slate-900 dark:text-white font-medium truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{sub.username}</p>
-                            <p className="text-slate-500 text-xs">{listType === 'subscriptions' ? (language === 'ja' ? 'フォロー中' : 'Following') : (language === 'ja' ? 'フォロワー' : 'Followers')}</p>
+                            <p className="text-slate-500 text-xs truncate">{listType === 'business-cards' ? [sub.name, sub.company].filter(Boolean).join(' · ') : listType === 'subscriptions' ? (language === 'ja' ? 'フォロー中' : 'Following') : (language === 'ja' ? 'フォロワー' : 'Followers')}</p>
                           </div>
                           <ChevronRight className="w-4 h-4 text-slate-400 dark:text-slate-600 group-hover:text-slate-600 dark:group-hover:text-slate-400 transition-colors" />
-                        </div>
+                        </button>
                       ))
                     )
                   ) : (
@@ -603,7 +653,8 @@ export default function Profile() {
                       <p className="text-slate-500 text-sm">
                         {(listType === 'joint' || listType === 'ema' || listType === 'idea')
                           ? 'まだ投稿されていません'
-                          : `No ${listType === 'subscriptions' ? 'following' : 'followers'} yet`}
+                          : listType === 'business-cards' ? (language === 'ja' ? '取り込んだ名刺はまだありません。' : 'No collected cards yet.')
+                          : language === 'ja' ? (listType === 'subscriptions' ? 'フォロー中のユーザーはいません。' : 'フォロワーはいません。') : `No ${listType === 'subscriptions' ? 'following' : 'followers'} yet`}
                       </p>
                     </div>
                   )}
@@ -625,7 +676,7 @@ export default function Profile() {
 
         {/* Edit Profile Modal */}
         {isEditProfileOpen && (
-          <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 pt-[130px] pb-[80px] md:pb-[100px]">
+          <div className="fixed inset-0 z-[90] flex items-center justify-center px-3 sm:px-4 pt-[clamp(4rem,14vh,8.125rem)] pb-[clamp(5rem,10vh,6.25rem)]">
             <div
               onClick={() => setIsEditProfileOpen(false)}
               className="absolute inset-0 bg-black/60 backdrop-blur-sm"
@@ -892,7 +943,7 @@ export default function Profile() {
               onClick={() => setIsSettingsOpen(false)}
               className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             />
-            <div className="fixed inset-0 flex items-center justify-center p-4 pt-[130px] pb-[80px] md:pb-[100px] pointer-events-none z-[90]">
+            <div className="fixed inset-0 flex items-center justify-center px-3 sm:px-4 pt-[clamp(4rem,14vh,8.125rem)] pb-[clamp(5rem,10vh,6.25rem)] pointer-events-none z-[90]">
               <div className="relative w-full max-w-4xl bg-white dark:bg-[#0b0f19]/95 backdrop-blur-2xl border border-slate-200 dark:border-cyan-500/30 rounded-3xl p-0 shadow-2xl dark:shadow-[0_8px_32px_0_rgba(0,0,0,0.6)] pointer-events-auto overflow-hidden flex flex-col md:flex-row h-full max-h-[800px] text-slate-900 dark:text-white">
                 {/* Sidebar / List */}
                 <div className={`w-full md:w-1/3 bg-slate-50 dark:bg-slate-900 md:border-r border-slate-200 dark:border-slate-800 p-6 flex flex-col h-full shrink-0 relative z-20 ${activeSettingTab !== null ? 'hidden md:flex' : 'flex'}`}>
@@ -969,7 +1020,7 @@ export default function Profile() {
                 </div>
 
                 {/* Content Area */}
-                <div className={`flex-1 bg-slate-100/70 dark:bg-slate-900/50 p-6 overflow-y-auto relative h-full ${activeSettingTab === null ? 'hidden' : 'block md:block'}`}>
+                <div data-settings-panel="true" className={`flex-1 bg-slate-100/70 dark:bg-slate-900/50 p-6 overflow-y-auto relative h-full ${activeSettingTab === null ? 'hidden' : 'block md:block'}`}>
                   <div className="flex items-center justify-between mb-6 md:mb-0">
                     <button 
                       onClick={() => setActiveSettingTab(null)}
@@ -981,8 +1032,7 @@ export default function Profile() {
                     <h2 className="text-xl font-bold text-slate-900 dark:text-white md:hidden">
                        {language === 'ja' && activeSettingTab === 'Privacy & Security' ? 'プライバシーとセキュリティ' :
                         language === 'ja' && activeSettingTab === 'Notifications' ? '通知' :
-                        language === 'ja' && activeSettingTab === 'Language' ? '言語' :
-                        language === 'ja' && activeSettingTab === 'Appearance' ? '外観' : activeSettingTab}
+                        language === 'ja' && activeSettingTab === 'Language' ? '言語' : activeSettingTab}
                     </h2>
                     <button onClick={() => {
                       setIsSettingsOpen(false);
@@ -1063,47 +1113,6 @@ export default function Profile() {
                       </div>
                     )}
 
-                    {activeSettingTab === 'Appearance' && (
-                      <div className="space-y-4">
-                        <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">{language === 'ja' ? 'お使いのデバイスでのE-hubの外観をカスタマイズします。' : 'Customize how E-hub looks on your device.'}</p>
-                        <div className="grid grid-cols-2 gap-4">
-                          <button 
-                            onClick={() => setTheme('dark')}
-                            className={`p-6 border-2 rounded-3xl flex flex-col items-center gap-3 transition-all ${
-                              theme === 'dark' 
-                                ? 'bg-slate-800 border-indigo-500 dark:border-white text-white scale-[1.02] shadow-md' 
-                                : 'bg-white dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/50 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800/60'
-                            }`}
-                          >
-                            <Moon className={`w-8 h-8 ${theme === 'dark' ? 'text-indigo-400 dark:text-white' : 'text-slate-400'}`} />
-                            <span className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-slate-700 dark:text-slate-400'}`}>{language === 'ja' ? 'ダークモード' : 'Dark Mode'}</span>
-                            {theme === 'dark' ? (
-                              <span className="text-xs px-2.5 py-1 bg-indigo-500/20 text-indigo-300 dark:bg-white/20 dark:text-white rounded-md font-medium">{language === 'ja' ? 'アクティブ' : 'Active'}</span>
-                            ) : (
-                              <div className="h-6"></div>
-                            )}
-                          </button>
-                          <button 
-                            onClick={() => setTheme('light')}
-                            className={`p-6 border-2 rounded-3xl flex flex-col items-center gap-3 transition-all ${
-                              theme === 'light'
-                                ? 'bg-white border-indigo-600 dark:border-white text-slate-900 dark:text-white scale-[1.02] shadow-md'
-                                : 'bg-white dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/50 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800/60'
-                            }`}
-                          >
-                            <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-200 flex items-center justify-center border border-slate-300 dark:border-transparent">
-                              <div className={`w-4 h-4 rounded-full ${theme === 'light' ? 'bg-amber-500' : 'bg-slate-400'}`}></div>
-                            </div>
-                            <span className={`font-medium ${theme === 'light' ? 'text-slate-900 dark:text-white' : 'text-slate-700 dark:text-slate-400'}`}>{language === 'ja' ? 'ライトモード' : 'Light Mode'}</span>
-                            {theme === 'light' ? (
-                              <span className="text-xs px-2.5 py-1 bg-indigo-50 dark:bg-white/20 text-indigo-600 dark:text-white rounded-md font-medium">{language === 'ja' ? 'アクティブ' : 'Active'}</span>
-                            ) : (
-                              <div className="h-6"></div>
-                            )}
-                          </button>
-                        </div>
-                      </div>
-                    )}
                     {activeSettingTab === 'Privacy & Security' && (
                         <div className="space-y-4">
                           <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">{language === 'ja' ? 'データ、パスワード、アカウントのセキュリティ設定をここで管理します。' : 'Manage your data, password and account security settings here.'}</p>
@@ -1419,7 +1428,10 @@ export default function Profile() {
             <div>
               {isOwnProfile && (
                 <button
-                  onClick={() => setIsSettingsOpen(true)}
+                  onClick={() => {
+                    setActiveSettingTab(window.innerWidth >= 768 ? 'Privacy & Security' : null);
+                    setIsSettingsOpen(true);
+                  }}
                   className="p-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl shadow-sm group"
                   title={language === 'ja' ? 'メニュー / 設定' : 'Menu / Settings'}
                 >
@@ -1498,8 +1510,10 @@ export default function Profile() {
             </div>
           </div>
 
-          {/* User Identity Row: [Avatar] on left, Name & Current Plan on right */}
-          <div className="flex items-center gap-3.5 sm:gap-4">
+          {targetUserId && <BusinessCardPanel key={`${targetUserId}:${currentUser?.id||'guest'}`} refreshKey={isSubscribed} userId={Number(targetUserId)} name={profileUser?.username || currentUser?.username || ''} isOwn={isOwnProfile} actorId={currentUser?.id ? Number(currentUser.id) : undefined} onCollected={() => setCardRefresh(v => v + 1)} />}
+
+            {/* User Identity Row: [Avatar] on left, Name & Current Plan on right */}
+          <div data-testid="profile-identity" className="flex items-center gap-3.5 sm:gap-4">
             <div className={`relative group ${isOwnProfile ? 'cursor-pointer' : ''} shrink-0`} onClick={handleAvatarClick}>
               <div className="relative inline-block">
                 <img 
@@ -1727,7 +1741,7 @@ export default function Profile() {
           <div className="flex items-center justify-between gap-3 p-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800 rounded-xl text-xs font-semibold flex-wrap">
             <div className="flex items-center gap-3">
               <button
-                onClick={() => { setListType('subscriptions'); setIsMenuOpen(true); }}
+                data-testid="profile-following-button" onClick={() => { setSubscriptions([]); setListError(''); setIsLoadingList(true); setListType('subscriptions'); setIsMenuOpen(true); }}
                 className="flex items-center gap-1 hover:text-blue-600 transition-colors"
               >
                 <span className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white">{stats?.followingCount || 0}</span>
@@ -1735,7 +1749,7 @@ export default function Profile() {
               </button>
               <div className="h-3.5 w-[1px] bg-slate-300 dark:bg-slate-700"></div>
               <button
-                onClick={() => { setListType('subscribers'); setIsMenuOpen(true); }}
+                onClick={() => { setSubscriptions([]); setListError(''); setIsLoadingList(true); setListType('subscribers'); setIsMenuOpen(true); }}
                 className="flex items-center gap-1 hover:text-blue-600 transition-colors"
               >
                 <span className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white">{stats?.subscriberCount || 0}</span>
@@ -1893,6 +1907,7 @@ export default function Profile() {
                       <Link 
                         key={`${item.type}-${item.id}`}
                         to={targetUrl}
+                        state={{section:Number(item.is_buyout)===1?'store':Number(item.is_recruitment)===1?'project':undefined}}
                         className="block bg-white dark:bg-[#0b0f19] border border-slate-200 dark:border-cyan-500/20 hover:border-blue-400 dark:hover:border-cyan-500/50 rounded-2xl overflow-hidden group shadow-md dark:shadow-[0_4px_20px_rgba(0,0,0,0.4)] transition-all hover:scale-[1.01] flex flex-col"
                       >
                         <div className="relative aspect-[16/10] bg-slate-100 dark:bg-slate-900 overflow-hidden">
@@ -1934,13 +1949,13 @@ export default function Profile() {
                             )}
                           </div>
 
-                          <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                          <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex flex-col items-stretch gap-2 text-[11px] text-slate-500 dark:text-slate-400">
                             <div className="flex items-center gap-1.5">
                               <img src={displayUser.avatar || item.author_avatar || undefined} alt="" className={`w-5 h-5 rounded-full object-cover ${getAccountTypeBorderClass(displayUser.account_type || item.author_account_type || item.account_type, 'border-2')}`} />
                               <span className="font-semibold truncate max-w-[80px] sm:max-w-[100px] text-[11px]">{displayUser.username || item.author_name}</span>
                             </div>
 
-                            <div className="flex items-center gap-2 text-[10px] sm:text-[11px]">
+                            <div className="flex flex-wrap items-center justify-between gap-1 text-[10px] sm:text-[11px]">
                               <span className="flex items-center gap-0.5 hover:text-pink-500 transition-colors" title="Likes">
                                 <Heart className="w-3.5 h-3.5 text-pink-500" />
                                 <span className="font-medium">{item.likes_count || 0}</span>

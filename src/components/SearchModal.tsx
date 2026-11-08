@@ -24,6 +24,9 @@ type SearchItem = {
   account_type?: string;
   tags?: string;
   is_recruitment?: number;
+  is_private?: number;
+  author_id?: number;
+  permitted_users?: string;
   is_buyout?: number;
   created_at?: string;
   user_id?: number;
@@ -132,9 +135,12 @@ export default function SearchModal({ isOpen, onClose, initialQuery = '' }: Sear
   const allItems = [...allProjects, ...allIdeas, ...allUsers];
 
   const filteredItems = allItems.filter(item => {
+    if (item.type !== 'user' && Number(item.is_private) === 1 && item.author_id !== user?.id) {
+      try { if (!user || !JSON.parse(item.permitted_users || '[]').includes(user.id)) return false; } catch { return false; }
+    }
     // Filter by content type tab
-    if (activeFilter === 'project' && item.type !== 'project') return false;
-    if (activeFilter === 'idea' && item.type !== 'idea') return false;
+    if (activeFilter === 'project' && (item.type === 'user' || Number(item.is_recruitment) === 1)) return false;
+    if (activeFilter === 'idea' && (item.type !== 'idea' || Number(item.is_recruitment) === 1)) return false;
     if (activeFilter === 'recruitment' && Number(item.is_recruitment) !== 1) return false;
     if (activeFilter === 'user' && item.type !== 'user') return false;
 
@@ -156,12 +162,12 @@ export default function SearchModal({ isOpen, onClose, initialQuery = '' }: Sear
   }).slice(0, 10);
 
   const modalContent = (
-    <div className="fixed inset-0 z-[150] flex items-start justify-center pt-12 md:pt-20 px-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[150] flex items-start justify-center pt-[clamp(1rem,8vh,5rem)] pb-4 px-3 sm:px-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
       {/* Modal backdrop click */}
       <div className="fixed inset-0" onClick={onClose} />
 
       {/* Main dialog */}
-      <div className="relative w-full max-w-2xl bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden z-10 flex flex-col max-h-[80vh] animate-in zoom-in-95 duration-200">
+      <div data-search-dialog="true" className="relative w-full max-w-2xl bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden z-10 flex flex-col max-h-[calc(100dvh-clamp(1rem,8vh,5rem)-1rem)] animate-in zoom-in-95 duration-200">
         
         {/* Search Bar Input Header */}
         <form onSubmit={handleSearchSubmit} className="p-4 md:p-5 border-b border-slate-200 dark:border-slate-800 flex items-center gap-3 shrink-0 bg-slate-50/50 dark:bg-slate-900/50">
@@ -218,7 +224,7 @@ export default function SearchModal({ isOpen, onClose, initialQuery = '' }: Sear
               <span>Idea</span>
             </button>
             <button
-              onClick={() => setActiveFilter('recruitment')}
+              data-search-filter="project" onClick={() => setActiveFilter('recruitment')}
               className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition-all shrink-0 ${activeFilter === 'recruitment' ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
             >
               <Users className="w-3 h-3 text-emerald-400" />
@@ -371,7 +377,7 @@ export default function SearchModal({ isOpen, onClose, initialQuery = '' }: Sear
                         if (item.type === 'user') {
                           navigate(`/profile/${item.id}`);
                         } else {
-                          navigate(`/${item.type}/${item.id}`);
+                          navigate(`/${item.type}/${item.id}`, { state: { section: Number(item.is_buyout) === 1 ? 'store' : Number(item.is_recruitment) === 1 ? 'project' : undefined } });
                         }
                       }}
                       className="group p-3 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 hover:bg-blue-50/80 dark:hover:bg-slate-800 border border-slate-200/60 dark:border-slate-700/50 transition-all cursor-pointer flex items-center gap-3.5"

@@ -34,7 +34,7 @@ type Contact = {
 export default function ChatList() {
   const { user, socket, language } = useAppContext();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeTab, setActiveTab] = useState<'project' | 'direct'>(tabParam === 'direct' ? 'direct' : 'project');
@@ -200,7 +200,7 @@ export default function ChatList() {
 
       <div className="flex bg-slate-200/80 dark:bg-[#0b0f19] rounded-full p-1 border border-slate-300 dark:border-cyan-500/20 shrink-0 mb-6 w-full sm:w-fit mx-auto sm:mx-0 shadow-sm">
           <button 
-            onClick={() => setActiveTab('project')}
+            aria-pressed={activeTab === 'project'} onClick={() => { setActiveTab('project'); setSearchParams({tab:'project'}); }}
             className={`flex-1 sm:flex-none py-2 px-6 rounded-full text-xs font-bold transition-all flex items-center justify-center gap-2 ${
               activeTab === 'project' 
                 ? 'bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-cyan-500 dark:to-blue-600 text-white shadow-md shadow-blue-500/20 dark:shadow-cyan-500/20' 
@@ -211,7 +211,7 @@ export default function ChatList() {
             {projectUnread > 0 && <span className="bg-rose-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{projectUnread}</span>}
           </button>
           <button 
-            onClick={() => setActiveTab('direct')}
+            aria-pressed={activeTab === 'direct'} onClick={() => { setActiveTab('direct'); setSearchParams({tab:'direct'}); }}
             className={`flex-1 sm:flex-none py-2 px-6 rounded-full text-xs font-bold transition-all flex items-center justify-center gap-2 ${
               activeTab === 'direct' 
                 ? 'bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-cyan-500 dark:to-blue-600 text-white shadow-md shadow-blue-500/20 dark:shadow-cyan-500/20' 

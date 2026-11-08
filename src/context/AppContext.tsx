@@ -49,8 +49,6 @@ type AppContextType = {
   refreshUnreadRecruitmentCount: () => Promise<void>;
   language: string;
   setLanguage: (lang: string) => void;
-  theme: 'dark' | 'light';
-  setTheme: (theme: 'dark' | 'light') => void;
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -66,7 +64,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [unreadOfferCount, setUnreadOfferCount] = useState(0);
   const [unreadRecruitmentCount, setUnreadRecruitmentCount] = useState(0);
   const [language, setLanguageState] = useState(() => localStorage.getItem('ehub_language') || 'en');
-  const [themeState, setThemeState] = useState<'dark' | 'light'>(() => (localStorage.getItem('ehub_theme') as 'dark' | 'light') || 'dark');
   const refreshTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
   const setLanguage = (lang: string) => {
@@ -76,20 +73,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } catch(e) {}
   };
 
-  const setTheme = (theme: 'dark' | 'light') => {
-    setThemeState(theme);
-    try {
-      localStorage.setItem('ehub_theme', theme);
-    } catch(e) {}
-  };
-
   useEffect(() => {
-    if (themeState === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [themeState]);
+    document.documentElement.classList.remove('dark');
+    try {
+      localStorage.removeItem('ehub_theme');
+    } catch {}
+  }, []);
 
   const userRef = useRef<User | null>(user);
   userRef.current = user;
@@ -362,7 +351,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       unreadNotificationsCount, refreshUnreadNotificationsCount,
       unreadOfferCount, refreshUnreadOfferCount,
       unreadRecruitmentCount, refreshUnreadRecruitmentCount,
-      language, setLanguage, theme: themeState, setTheme
+      language, setLanguage
     }}>
       {children}
     </AppContext.Provider>

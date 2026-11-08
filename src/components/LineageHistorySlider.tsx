@@ -14,10 +14,10 @@ export default function LineageHistorySlider({ lineage, currentId, currentType, 
   const scroll = (direction: 'left' | 'right') => {
     if (scrollRef.current) {
       const { scrollLeft, clientWidth } = scrollRef.current;
-      const scrollTo = direction === 'left' 
-        ? scrollLeft - clientWidth * 0.8 
+      const scrollTo = direction === 'left'
+        ? scrollLeft - clientWidth * 0.8
         : scrollLeft + clientWidth * 0.8;
-      
+
       scrollRef.current.scrollTo({
         left: scrollTo,
         behavior: 'smooth'
@@ -26,27 +26,27 @@ export default function LineageHistorySlider({ lineage, currentId, currentType, 
   };
 
   return (
-    <div className={`bg-slate-900 rounded-3xl border border-slate-800 overflow-hidden group/row relative ${size === "small" ? "p-3 md:p-4" : "p-4 md:p-8"}`}>
-      <div className="absolute top-3 right-3 md:top-4 md:right-4 z-20">
-        <button 
+    <div data-testid="project-lineage" className={`bg-white rounded-3xl border border-slate-200 overflow-hidden group/row relative ${size === "small" ? "p-3 md:p-4" : "p-4 md:p-8"}`}>
+      <div className="flex justify-end mb-3">
+        <button
           onClick={() => navigate('/list', { state: { title: 'Lineage Path', items: lineage } })}
-          className="px-3 py-1 bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white text-xs md:text-sm rounded-full transition-colors font-medium border border-slate-700 hover:border-slate-600 flex items-center gap-1.5"
+          className="px-3 py-1 bg-slate-50/80 hover:bg-slate-100 text-slate-700 hover:text-slate-900 text-xs md:text-sm rounded-full transition-colors font-medium border border-slate-200 hover:border-slate-300 flex items-center gap-1.5"
         >
           <List className="w-4 h-4" />
           {language === 'ja' ? '一覧' : 'List'}
         </button>
       </div>
-      
+
       <div className="relative">
         {/* Left Arrow */}
         <button
           onClick={() => scroll('left')}
-          className="absolute left-0 top-1/2 -translate-y-1/2 z-20 h-full px-2 bg-gradient-to-r from-slate-900 to-transparent opacity-0 group-hover/row:opacity-100 transition-opacity hidden md:flex items-center justify-center text-white/50 hover:text-white"
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-20 h-full px-2 bg-gradient-to-r from-white to-transparent opacity-0 group-hover/row:opacity-100 transition-opacity hidden md:flex items-center justify-center text-slate-900/50 hover:text-slate-900"
         >
           <ChevronLeft className="w-8 h-8" />
         </button>
 
-        <div 
+        <div
           ref={scrollRef}
           className="flex items-start gap-6 overflow-x-auto pb-6 scrollbar-hide scroll-smooth snap-x snap-mandatory"
           style={{ scrollbarWidth: 'none' }}
@@ -55,18 +55,18 @@ export default function LineageHistorySlider({ lineage, currentId, currentType, 
             const prevItem = i === 0 ? null : lineage[i - 1];
             const isNextFromPrev = prevItem ? (item.author_id === prevItem.author_id) : true;
             const isProject = item.type === 'project';
-            const isCurrent = currentId !== undefined && currentType !== undefined 
+            const isCurrent = currentId !== undefined && currentType !== undefined
               ? (item.id === currentId && item.type === currentType)
               : (i === lineage.length - 1);
 
             return (
               <React.Fragment key={`lineage-node-wrapper-${item.type}-${item.id}-${i}`}>
                 <div key={`lineage-node-${item.type}-${item.id}-${i}`} className="flex items-start gap-4 md:gap-6 shrink-0 snap-start">
-                  
+
                   {/* Visual Arrow / Connection Indicator */}
                   {i > 0 && (
                     <div className="flex flex-col items-center gap-1 md:gap-1.5 shrink-0 self-center">
-                      <div className={`flex ${isNextFromPrev ? "text-blue-400" : "text-slate-600"}`}>
+                      <div className={`flex ${isNextFromPrev ? "text-blue-600" : "text-slate-600"}`}>
                         {isNextFromPrev && <ChevronRight className="w-5 h-5 md:w-6 md:h-6 -mr-2 md:-mr-3" />}
                         <ChevronRight className="w-5 h-5 md:w-6 md:h-6" />
                       </div>
@@ -81,31 +81,31 @@ export default function LineageHistorySlider({ lineage, currentId, currentType, 
                     {/* Card Body Link */}
                     <Link to={`/${item.type}/${item.id}`} className="block relative">
                       <div className="relative aspect-[16/10] bg-slate-100 overflow-hidden rounded-2xl shadow-sm border border-slate-200">
-                        <img 
-                          src={item.image || undefined} 
-                          alt="" 
-                          className="w-full h-full object-cover transition-transform duration-700 hover:scale-105" 
-                          referrerPolicy="no-referrer" 
+                        <img
+                          src={item.image || undefined}
+                          alt=""
+                          className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
+                          referrerPolicy="no-referrer"
                         />
                         <div className="absolute top-2 left-2 z-20 bg-white/95 backdrop-blur-md px-2.5 py-1 flex items-center shadow-sm rounded-xl border border-slate-200">
                           <span className="text-[10px] font-bold text-slate-800 tracking-wide">
                             {isProject ? 'Vision' : 'Idea'}
                           </span>
                         </div>
-                        <div className={`absolute bottom-0 left-0 right-0 pt-12 bg-gradient-to-t from-black/90 via-black/40 to-transparent ${size === "small" ? "p-2" : "p-4"}`}>
-                          <h3 className={`text-white font-bold leading-tight line-clamp-1 ${size === "small" ? "text-sm md:text-base" : "text-base md:text-xl"}`}>{item.title}</h3>
+                        <div className={`absolute bottom-0 left-0 right-0 border-t border-slate-200 bg-white/95 ${size === "small" ? "p-2" : "p-4"}`}>
+                          <h3 className={`text-slate-900 font-bold leading-tight line-clamp-1 ${size === "small" ? "text-sm md:text-base" : "text-base md:text-xl"}`}>{item.title}</h3>
                         </div>
                       </div>
                     </Link>
 
                     <div className="mt-4 px-2 space-y-3">
-                      <Link to={`/profile/${item.author_id}`} className="flex items-center gap-3 text-slate-300 hover:text-white transition-colors w-fit">
+                      <Link to={`/profile/${item.author_id}`} className="flex items-center gap-3 text-slate-700 hover:text-slate-900 transition-colors w-fit">
                         <img src={item.author_avatar || undefined} alt="" className={`w-8 h-8 rounded-full object-cover ${getAccountTypeBorderClass(item.author_account_type || item.account_type, 'border-2')}`} />
                         <span className="text-sm font-bold truncate">{item.author_name}</span>
                       </Link>
 
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4 text-slate-400">
+                        <div className="flex items-center gap-4 text-slate-600">
                           <div className="flex items-center gap-1.5">
                             <Heart className="w-4 h-4" />
                             <span className="text-xs font-medium">{item.likes_count || 0}</span>
@@ -137,12 +137,12 @@ export default function LineageHistorySlider({ lineage, currentId, currentType, 
                 if (imgArr.length > 0) coverImg = imgArr[0];
               } catch(e) {}
             }
-            
+
             return (
               <div key={`lineage-node-completed-end-${item.type}-${item.id}-${i}`} className="flex items-start gap-4 md:gap-6 shrink-0 snap-start">
                 {/* Visual Arrow / Connection Indicator */}
                 <div className="flex flex-col items-center gap-1 md:gap-1.5 shrink-0 self-center">
-                  <div className="flex text-emerald-400">
+                  <div className="flex text-emerald-700">
                     <ChevronRight className="w-5 h-5 md:w-6 md:h-6 -mr-2 md:-mr-3" />
                     <ChevronRight className="w-5 h-5 md:w-6 md:h-6" />
                   </div>
@@ -154,12 +154,12 @@ export default function LineageHistorySlider({ lineage, currentId, currentType, 
                 {/* Completed Card Style */}
                 <Link
                   to={`/completed/${item.id}`}
-                  className={`block shrink-0 bg-slate-900 border border-slate-800 rounded-xl overflow-hidden group hover:border-emerald-500/50 transition-colors drop-shadow-[0_4px_6px_rgba(0,0,0,0.3)] ${size === "small" ? "w-[120px] md:w-[160px]" : "w-[180px] md:w-[300px]"}`}
+                  className={`block shrink-0 bg-white border border-slate-200 rounded-xl overflow-hidden group hover:border-emerald-500/50 transition-colors drop-shadow-[0_4px_6px_rgba(0,0,0,0.3)] ${size === "small" ? "w-[120px] md:w-[160px]" : "w-[180px] md:w-[300px]"}`}
                 >
                   <div className="aspect-[16/10] relative overflow-hidden">
-                    <img 
-                      src={coverImg || undefined} 
-                      alt={item.title} 
+                    <img
+                      src={coverImg || undefined}
+                      alt={item.title}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
                       referrerPolicy="no-referrer"
                     />
@@ -168,19 +168,19 @@ export default function LineageHistorySlider({ lineage, currentId, currentType, 
                       RELEASED
                     </div>
                   </div>
-                  
+
                   <div className={size === "small" ? "p-2" : "p-4"}>
-                    <h3 className="font-bold text-white mb-1 md:mb-2 text-sm md:text-base line-clamp-1">{item.title}</h3>
-                    <p className="text-slate-400 text-sm mb-4 line-clamp-2 min-h-[40px]">
+                    <h3 className="font-bold text-slate-900 mb-1 md:mb-2 text-sm md:text-base line-clamp-1">{item.title}</h3>
+                    <p className="text-slate-600 text-sm mb-4 line-clamp-2 min-h-[40px]">
                       {item.description ? item.description.replace(/<[^>]*>/g, '') : "No description"}
                     </p>
-                    
+
                     <div className="flex items-center justify-between mt-auto">
                       <div className="flex items-center gap-2">
                         <img src={item.author_avatar || undefined} alt="" className={`w-5 h-5 rounded-full object-cover ${getAccountTypeBorderClass(item.author_account_type || item.account_type, 'border-2')}`} />
-                        <span className="text-xs text-slate-300 truncate">{item.author_name}</span>
+                        <span className="text-xs text-slate-700 truncate">{item.author_name}</span>
                       </div>
-                      
+
                       <div className="flex items-center gap-3 text-slate-500 text-xs shrink-0">
                         <div className="flex items-center gap-1">
                           <Heart className="w-3.5 h-3.5" />
@@ -198,7 +198,7 @@ export default function LineageHistorySlider({ lineage, currentId, currentType, 
         {/* Right Arrow */}
         <button
           onClick={() => scroll('right')}
-          className="absolute right-0 top-1/2 -translate-y-1/2 z-20 h-full px-2 bg-gradient-to-l from-slate-900 to-transparent opacity-0 group-hover/row:opacity-100 transition-opacity hidden md:flex items-center justify-center text-white/50 hover:text-white"
+          className="absolute right-0 top-1/2 -translate-y-1/2 z-20 h-full px-2 bg-gradient-to-l from-white to-transparent opacity-0 group-hover/row:opacity-100 transition-opacity hidden md:flex items-center justify-center text-slate-900/50 hover:text-slate-900"
         >
           <ChevronRight className="w-8 h-8" />
         </button>

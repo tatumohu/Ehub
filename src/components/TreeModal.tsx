@@ -70,17 +70,17 @@ export default function TreeModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">
-      <div 
-        className="bg-slate-950 border border-slate-800 rounded-3xl w-full max-w-6xl h-[85vh] flex flex-col shadow-2xl relative overflow-hidden text-white"
+    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">
+      <div
+        data-ui-dialog="project-tree" role="dialog" aria-modal="true" className="bg-white border border-slate-200 rounded-3xl w-full max-w-6xl h-[85vh] flex flex-col shadow-2xl relative overflow-hidden text-slate-900"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Top Header Bar */}
-        <div className="p-5 px-6 border-b border-slate-800 flex items-center justify-between bg-slate-900/60">
+        <div className="p-5 px-6 border-b border-slate-200 flex items-center justify-between bg-white/60">
           <div className="flex items-center gap-3">
             <button
-              onClick={onClose}
-              className="flex items-center gap-2 px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold transition-colors border border-slate-700"
+              aria-label="Close tree" onClick={onClose}
+              className="flex items-center gap-2 px-3.5 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-200 rounded-xl text-xs font-bold transition-colors border border-slate-200"
             >
               <ArrowLeft className="w-4 h-4" />
               <span>戻る</span>
@@ -91,11 +91,11 @@ export default function TreeModal({
             <div>
               <h3 className="text-lg font-bold flex items-center gap-2">
                 <span>Idea ツリー構造</span>
-                <span className="text-xs font-normal text-slate-400 bg-slate-800 px-2.5 py-0.5 rounded-full border border-slate-700">
+                <span className="text-xs font-normal text-slate-600 bg-slate-50 px-2.5 py-0.5 rounded-full border border-slate-200">
                   横型ダイアグラム
                 </span>
               </h3>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-600">
                 アイデアの派生・編集履歴をビジュアルに確認できます
               </p>
             </div>
@@ -106,14 +106,14 @@ export default function TreeModal({
               onClick={() => {
                 // List view toggle feedback
               }}
-              className="px-3 py-1.5 bg-slate-800/80 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors border border-slate-700"
+              className="px-3 py-1.5 bg-slate-50/80 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors border border-slate-200"
             >
-              <List className="w-4 h-4 text-blue-400" />
+              <List className="w-4 h-4 text-blue-600" />
               ≡ 一覧
             </button>
-            <button 
-              onClick={onClose}
-              className="p-2 bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white rounded-full transition-colors"
+            <button
+              aria-label="Close tree" onClick={onClose}
+              className="p-2 bg-slate-50/80 hover:bg-slate-100 text-slate-600 hover:text-slate-900 rounded-full transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -121,7 +121,7 @@ export default function TreeModal({
         </div>
 
         {/* Tree Container (Horizontal Scrollable Canvas) */}
-        <div className="flex-1 overflow-x-auto overflow-y-auto p-8 flex items-center bg-radial-pattern bg-[length:24px_24px] bg-slate-950/80">
+        <div className="flex-1 overflow-x-auto overflow-y-auto p-8 flex items-center bg-radial-pattern bg-[length:24px_24px] bg-white/80">
           {loading ? (
             <div className="w-full text-center py-20 text-slate-500 text-sm">
               <div className="w-8 h-8 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mx-auto mb-3" />
@@ -130,7 +130,7 @@ export default function TreeModal({
           ) : treeData.length === 0 ? (
             /* Fallback layout with current item if tree endpoint empty */
             <div className="flex items-center gap-6 min-w-max mx-auto py-10">
-              <TreeCard 
+              <TreeCard
                 item={{
                   id: currentItem.id,
                   title: currentItem.title,
@@ -138,17 +138,17 @@ export default function TreeModal({
                   stage: 1,
                   author_name: '投稿者',
                   version: 1
-                }} 
+                }}
                 isActive={true}
                 isEma={currentItem.type === 'project'}
               />
-              <div className="flex items-center text-blue-400 gap-1 font-black text-xs px-2 animate-pulse">
+              <div className="flex items-center text-blue-600 gap-1 font-black text-xs px-2 animate-pulse">
                 <span>&gt;&gt;</span>
                 <span className="tracking-widest">NEXT</span>
               </div>
-              <AddProposalNode 
-                parentId={currentItem.id} 
-                parentType={currentItem.type} 
+              <AddProposalNode
+                parentId={currentItem.id}
+                parentType={currentItem.type}
                 onNewProposal={onNewProposal}
               />
             </div>
@@ -159,21 +159,21 @@ export default function TreeModal({
                 const isLast = index === treeData.length - 1;
                 return (
                   <React.Fragment key={node.id}>
-                    <TreeCard 
+                    <TreeCard
                       item={node}
                       isActive={isActive}
                       isEma={node.quoted_item_type === 'project' || index === 0}
                     />
-                    
-                    <div className="flex items-center text-blue-400/80 gap-1 font-black text-xs px-1">
+
+                    <div className="flex items-center text-blue-600/80 gap-1 font-black text-xs px-1">
                       <span>&gt;&gt;</span>
                       <span className="tracking-widest text-[10px]">NEXT</span>
                     </div>
 
                     {isLast && (
-                      <AddProposalNode 
-                        parentId={node.id} 
-                        parentType="idea" 
+                      <AddProposalNode
+                        parentId={node.id}
+                        parentType="idea"
                         onNewProposal={onNewProposal}
                       />
                     )}
@@ -185,7 +185,7 @@ export default function TreeModal({
         </div>
 
         {/* Footer info bar */}
-        <div className="p-4 px-6 border-t border-slate-800 bg-slate-900/80 flex items-center justify-between text-xs text-slate-400">
+        <div className="p-4 px-6 border-t border-slate-200 bg-white/80 flex items-center justify-between text-xs text-slate-600">
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-sm shadow-blue-500" />
@@ -209,25 +209,25 @@ export default function TreeModal({
 function TreeCard({ item, isActive, isEma }: { item: TreeItem; isActive: boolean; isEma?: boolean }) {
   return (
     <div className={`relative w-72 rounded-2xl transition-all transform hover:-translate-y-1 duration-200 ${
-      isActive 
-        ? 'ring-2 ring-blue-500 shadow-[0_10px_30px_rgba(59,130,246,0.35)] bg-slate-900' 
-        : 'bg-slate-900/80 border border-slate-800 hover:border-slate-700'
+      isActive
+        ? 'ring-2 ring-blue-500 shadow-[0_10px_30px_rgba(59,130,246,0.35)] bg-white'
+        : 'bg-white/80 border border-slate-200 hover:border-slate-200'
     }`}>
       {/* Top Banner Header (Vision styling vs Standard Idea styling) */}
       <div className={`p-3 px-4 rounded-t-2xl flex items-center justify-between border-b ${
-        isEma 
-          ? 'bg-gradient-to-r from-blue-900/60 to-indigo-900/60 border-blue-500/30 text-blue-300' 
-          : 'bg-slate-800/50 border-slate-800 text-slate-300'
+        isEma
+          ? 'bg-gradient-to-r from-blue-900/60 to-indigo-900/60 border-blue-500/30 text-blue-300'
+          : 'bg-slate-50/50 border-slate-200 text-slate-700'
       }`}>
         <span className="text-[11px] font-bold tracking-wide flex items-center gap-1.5">
           {isEma ? (
             <>
-              <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+              <Sparkles className="w-3.5 h-3.5 text-blue-600" />
               <span>Vision (課題領域)</span>
             </>
           ) : (
             <>
-              <GitBranch className="w-3.5 h-3.5 text-indigo-400" />
+              <GitBranch className="w-3.5 h-3.5 text-indigo-600" />
               <span>Idea v{item.version || 1}</span>
             </>
           )}
@@ -240,24 +240,24 @@ function TreeCard({ item, isActive, isEma }: { item: TreeItem; isActive: boolean
       {/* Card Body */}
       <div className="p-4 space-y-3">
         {item.image && (
-          <div className="h-28 w-full rounded-xl overflow-hidden border border-slate-800/80">
+          <div className="h-28 w-full rounded-xl overflow-hidden border border-slate-200/80">
             <img src={item.image} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
           </div>
         )}
 
         <div>
-          <h4 className="font-bold text-sm text-white line-clamp-2 leading-snug mb-1">
+          <h4 className="font-bold text-sm text-slate-900 line-clamp-2 leading-snug mb-1">
             {item.title}
           </h4>
-          <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
+          <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">
             {item.description?.replace(/<[^>]*>?/gm, '') || ''}
           </p>
         </div>
 
         {/* Footer Meta */}
-        <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
+        <div className="pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px] text-slate-600">
           <div className="flex items-center gap-1.5">
-            <div className={`w-5 h-5 rounded-full bg-slate-700 overflow-hidden flex items-center justify-center font-bold text-[10px] text-white shrink-0 ${getAccountTypeBorderClass(item.author_account_type || item.account_type, 'border-2')}`}>
+            <div className={`w-5 h-5 rounded-full bg-slate-100 overflow-hidden flex items-center justify-center font-bold text-[10px] text-slate-700 shrink-0 ${getAccountTypeBorderClass(item.author_account_type || item.account_type, 'border-2')}`}>
               {item.author_avatar ? (
                 <img src={item.author_avatar} alt="" className="w-full h-full object-cover" />
               ) : (
@@ -267,13 +267,13 @@ function TreeCard({ item, isActive, isEma }: { item: TreeItem; isActive: boolean
             <span className="truncate max-w-[90px]">{item.author_name}</span>
           </div>
 
-          <div className="flex items-center gap-2 text-slate-400">
+          <div className="flex items-center gap-2 text-slate-600">
             <span className="flex items-center gap-0.5">
-              <Heart className="w-3 h-3 text-rose-400" />
+              <Heart className="w-3 h-3 text-rose-700" />
               {item.likes_count || 0}
             </span>
             <span className="flex items-center gap-0.5">
-              <MessageSquare className="w-3 h-3 text-blue-400" />
+              <MessageSquare className="w-3 h-3 text-blue-600" />
               {item.comments_count || 0}
             </span>
           </div>
@@ -299,10 +299,10 @@ function AddProposalNode({ parentId, parentType, onNewProposal }: { parentId: nu
         <Plus className="w-6 h-6 stroke-[3]" />
       </div>
       <div>
-        <span className="font-bold text-sm text-blue-300 group-hover:text-white block mb-1">
+        <span className="font-bold text-sm text-blue-300 group-hover:text-slate-900 block mb-1">
           ＋ 新しいIdeaを提案
         </span>
-        <span className="text-[11px] text-slate-400 block">
+        <span className="text-[11px] text-slate-600 block">
           このノードから新しいIdeaを分岐提案します
         </span>
       </div>

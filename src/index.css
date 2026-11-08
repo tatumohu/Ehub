@@ -50,28 +50,7 @@
   --account-municipality-border: #86efac;
 }
 
-:root.dark, .dark {
-  background-color: #020617;
-  color: #f8fafc;
-  color-scheme: dark;
 
-  /* Account Type Theme Tokens - Dark Mode (Brightened so they pop cleanly and do not sink into dark backgrounds) */
-  --account-individual: #60a5fa;
-  --account-corporate: #f87171;
-  --account-municipality: #4ade80;
-
-  --account-individual-bg: rgba(96, 165, 250, 0.18);
-  --account-corporate-bg: rgba(248, 113, 113, 0.18);
-  --account-municipality-bg: rgba(74, 222, 128, 0.18);
-
-  --account-individual-text: #93c5fd;
-  --account-corporate-text: #fca5a5;
-  --account-municipality-text: #86efac;
-
-  --account-individual-border: rgba(96, 165, 250, 0.45);
-  --account-corporate-border: rgba(248, 113, 113, 0.45);
-  --account-municipality-border: rgba(74, 222, 128, 0.45);
-}
 
 .border-account-individual {
   border-color: var(--account-individual) !important;
@@ -322,3 +301,35 @@ html, body {
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
 }
 
+
+/* Keep the Project composer controls and rich content inside narrow viewports. */
+.project-composer-editor .ql-toolbar.ql-snow {
+  position: relative;
+  top: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+.project-composer-editor .ql-toolbar.ql-snow .ql-formats {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  margin-right: 8px;
+}
+.project-composer-editor .ql-toolbar.ql-snow button { width: 32px; height: 36px; }
+.project-composer-editor .ql-toolbar .ql-picker-label { min-height: 36px; display: flex; align-items: center; }
+.project-composer-editor .ql-container,
+.project-composer-editor .ql-editor { min-width: 0; max-width: 100%; }
+.project-composer-editor .ql-editor { overflow-wrap: anywhere; }
+.project-composer-editor .ql-editor img,
+.project-composer-editor .ql-editor video { max-width: 100%; height: auto; }
+.project-composer-editor .ql-editor a { overflow-wrap: anywhere; }
+
+/* Keep the contextual + beside the empty line, using only the gutter it needs. */
+[data-testid="project-body-editor"] {
+  --project-insert-gutter: clamp(0px, calc((848px - 100vw) / 2), 44px);
+}
+.project-insert-anchor { left: calc(var(--project-insert-gutter) - 48px); }
+.project-composer-editor .ql-editor { padding-left: var(--project-insert-gutter); }
+.project-composer-editor .ql-editor.ql-blank::before { left: var(--project-insert-gutter); }

@@ -96,14 +96,14 @@ export default function BuyoutPostModal({ onClose, onPost }: BuyoutPostModalProp
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-6">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[calc(100vh-6rem)] mt-[-2rem]">
+      <div data-ui-dialog="buyout" className="relative w-full max-w-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[calc(100vh-6rem)] mt-[-2rem]">
         <div className="flex items-center justify-between p-4 md:p-6 border-b border-slate-200 dark:border-slate-800">
           <h2 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white">
             {language === 'ja' ? 'バイアウトに投稿' : 'Post to Buyout'}
           </h2>
-          <button onClick={onClose} className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">
+          <button aria-label="Close Buyout" onClick={onClose} className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">
             <X className="w-6 h-6" />
           </button>
         </div>
@@ -118,7 +118,7 @@ export default function BuyoutPostModal({ onClose, onPost }: BuyoutPostModalProp
                     activeTab === 'home' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-300 hover:bg-slate-200/50 dark:hover:bg-slate-700/50'
                   }`}
                 >
-                  Home
+                  {language === 'ja' ? '投稿' : 'Posts'}
                 </button>
                 <button
                   onClick={() => { setActiveTab('completed'); setSelectedItem(null); }}
@@ -134,7 +134,7 @@ export default function BuyoutPostModal({ onClose, onPost }: BuyoutPostModalProp
                 {items.map(item => (
                   <div
                     key={`${item.type || (item.funding_goal !== undefined ? 'project' : 'idea')}-${item.id}`}
-                    onClick={() => setSelectedItem(item)}
+                    data-buyout-item="true" onClick={() => setSelectedItem(item)}
                     className={`relative aspect-square rounded-xl overflow-hidden cursor-pointer border-2 transition-all ${
                       selectedItem?.id === item.id && (selectedItem?.type || (selectedItem?.funding_goal !== undefined ? 'project' : 'idea')) === (item.type || (item.funding_goal !== undefined ? 'project' : 'idea')) ? 'border-emerald-500 scale-95' : 'border-transparent hover:border-slate-300 dark:hover:border-slate-500'
                     }`}
@@ -171,7 +171,7 @@ export default function BuyoutPostModal({ onClose, onPost }: BuyoutPostModalProp
                   <div className="text-xs text-slate-500 dark:text-slate-400">{language === 'ja' ? '設定した価格で販売' : 'Sell at a set price'}</div>
                 </button>
                 <button
-                  onClick={() => setBuyoutType('auction')}
+                  data-buyout-method="auction" onClick={() => setBuyoutType('auction')}
                   className={`flex-1 p-4 rounded-xl border-2 transition-all text-center ${
                     buyoutType === 'auction' ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-500/10' : 'border-slate-200 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-500'
                   }`}
@@ -215,7 +215,7 @@ export default function BuyoutPostModal({ onClose, onPost }: BuyoutPostModalProp
               </div>
 
               {buyoutType === 'auction' && (
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{language === 'ja' ? '開始日時' : 'Start Date'}</label>
                     <input
@@ -250,7 +250,7 @@ export default function BuyoutPostModal({ onClose, onPost }: BuyoutPostModalProp
           
           {step === 1 ? (
             <button
-              onClick={() => setStep(2)}
+              data-buyout-next="true" onClick={() => setStep(2)}
               disabled={!selectedItem}
               className="px-6 py-2.5 rounded-full font-bold bg-slate-900 dark:bg-white text-white dark:text-black hover:bg-slate-800 dark:hover:bg-slate-200 transition-colors disabled:opacity-50"
             >
@@ -258,7 +258,7 @@ export default function BuyoutPostModal({ onClose, onPost }: BuyoutPostModalProp
             </button>
           ) : (
             <button
-              onClick={handleSubmit}
+              data-buyout-submit="true" onClick={handleSubmit}
               disabled={isLoading}
               className="px-8 py-2.5 rounded-full font-bold bg-emerald-500 text-white hover:bg-emerald-400 transition-colors disabled:opacity-50 flex items-center gap-2"
             >

@@ -90,9 +90,9 @@ export default function CompletedProjects() {
   const handleTabChange = (tabId: string) => {
     setActiveTab(tabId as any);
     if (tabId === 'default') {
-      navigate('/completed');
+      navigate('/store');
     } else {
-      navigate(`/completed?tab=${tabId}`);
+      navigate(`/store?tab=${tabId}`);
     }
   };
   
@@ -335,7 +335,7 @@ export default function CompletedProjects() {
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
         <div className="flex items-center gap-3 mb-4 md:mb-0 cursor-pointer" onClick={() => handleTabChange('default')}>
           <CheckCircle className="w-8 h-8 md:w-10 md:h-10 text-emerald-500" />
-          <h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white">{language === 'ja' ? 'ストア' : 'Store'}</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white">{language === 'ja' ? '作品・商品' : 'Works & products'}</h1>
         </div>
       </div>
 
@@ -344,7 +344,7 @@ export default function CompletedProjects() {
         {TABS.map(tab => (
           <button
             key={tab.id}
-            onClick={() => handleTabChange(tab.id)}
+            data-store-tab={tab.id} onClick={() => handleTabChange(tab.id)}
             className={`text-xs md:text-sm font-semibold px-2 py-1 transition-colors whitespace-nowrap ${activeTab === tab.id || (activeTab === 'category_results' && tab.id === 'category') ? 'text-emerald-600 dark:text-emerald-400 border-b-2 border-emerald-600 dark:border-emerald-400' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
           >
             {language === 'ja' ? tab.labelJa : tab.labelEn}
@@ -352,7 +352,8 @@ export default function CompletedProjects() {
         ))}
       </div>
 
-      {activeTab === 'default' && (
+      {activeTab === 'default' && projects.length === 0 && <p className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-500">{language === 'ja' ? '販売中の作品はまだありません。Buyoutの出品もご覧いただけます。' : 'No works are on sale yet. You can also browse Buyout listings.'}</p>}
+      {activeTab === 'default' && projects.length > 0 && (
         <>
           {/* Top 3 Area */}
           {top3.length > 0 && (
@@ -476,7 +477,7 @@ export default function CompletedProjects() {
       {user && (
         <div className="fixed bottom-24 right-4 md:right-8 lg:right-12 z-40">
           <button 
-            onClick={handleOpenSelect}
+            data-product-create="true" onClick={handleOpenSelect}
             className="w-12 h-12 md:w-14 md:h-14 bg-emerald-500 hover:bg-emerald-400 text-white rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/30 transition-transform hover:scale-105"
           >
             <Plus className="w-5 h-5 md:w-6 md:h-6" />
@@ -486,28 +487,28 @@ export default function CompletedProjects() {
 
       {/* Select Vision Modal */}
       {showSelectEMA && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 md:p-6 max-w-2xl w-full">
-            <div className="flex items-center justify-between mb-4 md:mb-6">
-              <h2 className="text-lg md:text-xl font-bold text-white">Select Vision to Complete</h2>
-              <button onClick={() => setShowSelectEMA(false)} className="text-slate-400 hover:text-white">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-3 sm:p-6">
+          <div data-ui-dialog="product" className="bg-white border border-slate-200 rounded-2xl p-4 md:p-6 max-w-2xl w-full max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-3rem)] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between gap-3 mb-4 md:mb-6 shrink-0">
+              <h2 className="text-lg md:text-xl font-bold text-slate-900">Select Vision to Complete</h2>
+              <button aria-label="Close product selection" onClick={() => setShowSelectEMA(false)} className="shrink-0 rounded-lg p-2 text-slate-500 hover:text-slate-900">
                 <X className="w-5 h-5 md:w-6 md:h-6" />
               </button>
             </div>
             
-            <div className="max-h-[60vh] overflow-y-auto space-y-3 md:space-y-4">
+            <div className="min-h-0 overflow-y-auto space-y-3 md:space-y-4">
               {myEMAs.length === 0 ? (
-                 <p className="text-slate-400 text-center py-8">No active Visions found.</p>
+                 <p className="text-slate-500 text-center py-8">No active Visions found.</p>
               ) : myEMAs.map(ema => (
                  <button
-                   key={ema.id}
+                   data-product-item="true" key={ema.id}
                    onClick={() => navigate(`/completed/post/${ema.id}`)}
-                   className="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 p-3 md:p-4 rounded-xl flex items-center gap-3 md:gap-4 transition-colors text-left"
+                   className="w-full bg-slate-50 hover:bg-slate-100 border border-slate-200 p-3 md:p-4 rounded-xl flex items-center gap-3 md:gap-4 transition-colors text-left"
                  >
                    {ema.image && <img src={ema.image} alt={ema.title} className="w-12 h-12 md:w-16 md:h-16 rounded-lg object-cover" />}
-                   <div className="flex-1">
-                     <h3 className="text-sm md:text-base font-bold text-white line-clamp-1">{ema.title}</h3>
-                     <p className="text-xs md:text-sm text-slate-400 line-clamp-1">{ema.description.replace(/<[^>]*>/g, '')}</p>
+                   <div className="flex-1 min-w-0">
+                     <h3 className="text-sm md:text-base font-bold text-slate-900 line-clamp-1">{ema.title}</h3>
+                     <p className="text-xs md:text-sm text-slate-500 line-clamp-1">{ema.description.replace(/<[^>]*>/g, '')}</p>
                    </div>
                  </button>
               ))}
